@@ -154,12 +154,13 @@ def replace_orders(df, file_name):
             cur.execute("TRUNCATE TABLE orders RESTART IDENTITY")
 
             # =================================================
-            # INSERT ORDERS
+            # BULK LOAD ORDERS VIA COPY (STREAMED, NOT
+            # MATERIALIZED AS A LIST OF ROWS)
             # =================================================
 
-            insert_query = """
+            copy_query = """
 
-                INSERT INTO orders (
+                COPY orders (
 
                     order_created_at,
                     zop_order_id,
@@ -178,19 +179,15 @@ def replace_orders(df, file_name):
 
                 )
 
-                VALUES (
-
-                    %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s
-
-                )
+                FROM STDIN
 
             """
 
-            rows = list(data.itertuples(index=False, name=None))
+            with cur.copy(copy_query) as copy:
 
-            cur.executemany(insert_query, rows)
+                for row in data.itertuples(index=False, name=None):
+
+                    copy.write_row(row)
 
             # =================================================
             # UPLOAD HISTORY
