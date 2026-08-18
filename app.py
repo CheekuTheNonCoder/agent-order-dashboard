@@ -151,6 +151,7 @@ st.markdown(
     .metric-cancelled { border-bottom: 3px solid #ef4444; }
     .metric-transit { border-bottom: 3px solid #3b82f6; }
     .metric-pending { border-bottom: 3px solid #eab308; }
+    .metric-rto { border-bottom: 3px solid #f97316; }
 
     /* Streamlit overrides */
     .stButton > button {
@@ -495,11 +496,14 @@ if mode == "Agent":
                 delivered = status_series.eq("delivered").sum()
                 cancelled = status_series.eq("cancelled").sum()
                 in_transit = status_series.eq("in transit").sum()
-                pending = status_series.eq("pending").sum()
+                rto = status_series.eq("rto").sum()
+                pending = (
+                    ~status_series.isin(["delivered", "cancelled", "in transit", "rto"])
+                ).sum()
 
                 # Status Metrics Display
                 st.markdown("### 📊 Summary Status (Bawaal Cheez Hai)")
-                col1, col2, col3, col4, col5 = st.columns(5)
+                col1, col2, col3, col4, col5, col6 = st.columns(6)
 
                 with col1:
                     st.markdown(
@@ -547,6 +551,16 @@ if mode == "Agent":
                         <div class="metric-container metric-pending animate-fade-up">
                             <div class="metric-label">Pending</div>
                             <div class="metric-value" style="color: #eab308;">{pending}</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+                with col6:
+                    st.markdown(
+                        f"""
+                        <div class="metric-container metric-rto animate-fade-up">
+                            <div class="metric-label">RTO</div>
+                            <div class="metric-value" style="color: #f97316;">{rto}</div>
                         </div>
                         """,
                         unsafe_allow_html=True,
