@@ -24,7 +24,15 @@ def get_database_url():
 
 
 def get_connection():
-    return psycopg.connect(get_database_url())
+    """
+    Connect to Supabase PostgreSQL through the pooler.
+
+    prepare_threshold=None disables server-side prepared
+    statements. This prevents DuplicatePreparedStatement
+    errors when using the Supabase pooler.
+    """
+
+    return psycopg.connect(get_database_url(), prepare_threshold=None)
 
 
 # =========================================================
@@ -130,6 +138,7 @@ def replace_orders(df, file_name):
     # -----------------------------------------------------
 
     data = data.astype(object)
+
     data = data.where(pd.notna(data), None)
 
     # -----------------------------------------------------
@@ -169,8 +178,8 @@ def replace_orders(df, file_name):
                 )
                 VALUES (
                     %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s
+                    %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s
                 )
             """
 
@@ -179,6 +188,7 @@ def replace_orders(df, file_name):
             for row in data.itertuples(index=False, name=None):
                 rows.append(row)
 
+            # Insert all rows
             cur.executemany(insert_query, rows)
 
             # =============================================
