@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
-import datetime
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from database import (
     initialize_database,
@@ -296,7 +297,8 @@ st.markdown(
 
 def get_meme_time_greeting():
     try:
-        hour = datetime.datetime.now().hour
+        india_time = datetime.now(ZoneInfo("Asia/Kolkata"))
+        hour = india_time.hour
     except Exception:
         hour = 12
 
