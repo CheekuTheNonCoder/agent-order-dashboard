@@ -53,11 +53,37 @@ REQUIRED_COLUMNS = [
 
 
 # =========================================================
+# REFUND REASONS  (edit this list to add/update reasons later)
+# =========================================================
+
+REFUND_REASON_PLACEHOLDER = "— Select Reason —"
+
+REFUND_REASONS = [
+    "Defective Product",
+    "Damaged in Transit",
+    "Wrong Item Delivered",
+    "Size Issue",
+    "Order Cancelled by Customer",
+    "Duplicate Order",
+    "Late Delivery",
+    "Other",
+]
+
+REFUND_REASON_OPTIONS = [REFUND_REASON_PLACEHOLDER] + REFUND_REASONS
+
+
+# =========================================================
 # SESSION
 # =========================================================
 
 if "admin_logged_in" not in st.session_state:
     st.session_state.admin_logged_in = False
+
+if "last_search_results" not in st.session_state:
+    st.session_state.last_search_results = None
+
+if "show_refund_confirm" not in st.session_state:
+    st.session_state.show_refund_confirm = False
 
 
 # =========================================================
@@ -219,6 +245,60 @@ st.markdown(
         color: var(--text-1) !important;
     }
     div[data-testid="stTextInput"] input::placeholder { color: var(--text-3); opacity: 1; }
+
+    /* ---- native checkbox / radio accent (fixes default red dot) ---- */
+    input[type="checkbox"], input[type="radio"] {
+        accent-color: var(--accent-2) !important;
+    }
+
+    /* ---- number input (refund quantity / amount) ---- */
+    div[data-testid="stNumberInput"] div[data-baseweb="input"] {
+        background: var(--glass-strong) !important;
+        border: 1px solid var(--line) !important;
+        border-radius: var(--radius-md) !important;
+        backdrop-filter: blur(14px);
+        box-shadow: none !important;
+        transition: box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+    div[data-testid="stNumberInput"] div[data-baseweb="input"]:focus-within {
+        border-color: var(--accent-2) !important;
+        box-shadow: 0 0 0 3px rgba(100, 210, 255, 0.16) !important;
+    }
+    div[data-testid="stNumberInput"] input {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        color: var(--text-1) !important;
+    }
+
+    /* ---- selectbox (refund reason dropdown) ---- */
+    div[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
+        background: var(--glass-strong) !important;
+        border: 1px solid var(--line) !important;
+        border-radius: var(--radius-md) !important;
+        color: var(--text-1) !important;
+    }
+    div[data-testid="stSelectbox"] div[data-baseweb="select"] > div:hover {
+        border-color: var(--accent-2) !important;
+    }
+    ul[data-baseweb="menu"] {
+        background: var(--bg-1) !important;
+        border: 1px solid var(--line) !important;
+    }
+    li[role="option"] {
+        color: var(--text-1) !important;
+    }
+    li[role="option"]:hover, li[aria-selected="true"] {
+        background: var(--glass-strong) !important;
+    }
+
+    /* ---- checkbox label text ---- */
+    div[data-testid="stCheckbox"] label p {
+        color: var(--text-1) !important;
+        font-weight: 500 !important;
+        text-transform: none !important;
+        letter-spacing: normal !important;
+    }
 
     /* ---- buttons ---- */
     .stButton > button {
@@ -652,6 +732,33 @@ def stat_card(css_class, label, value):
     )
 
 
+def prepare_refund_payload(refund_rows):
+    """
+    Convert selected refund rows into the clean payload structure that
+    the Google Sheet / refund automation will eventually consume.
+
+    Input: list of dicts with keys
+        sr_channel_id, zop_order_id, variant_id, quantity, amount, refund_reason
+    Output: list of dicts with keys
+        channel_id, order_id, variant_id, quantity, amount, refund_reason
+    """
+    payload = []
+
+    for row in refund_rows:
+        payload.append(
+            {
+                "channel_id": row.get("sr_channel_id"),
+                "order_id": row.get("zop_order_id"),
+                "variant_id": row.get("variant_id"),
+                "quantity": row.get("quantity"),
+                "amount": row.get("amount"),
+                "refund_reason": row.get("refund_reason"),
+            }
+        )
+
+    return payload
+
+
 # =========================================================
 # SIDEBAR
 # =========================================================
@@ -715,6 +822,8 @@ if mode == "Agent":
 
         if not search_value.strip():
 
+            st.session_state.last_search_results = None
+
             st.warning(
                 "O Bhai, Maro Mujhe Maro! Input empty hai. Please enter an Order ID, ZOP ID, Seller Order ID or AWB."
             )
@@ -725,144 +834,325 @@ if mode == "Agent":
 
             if results.empty:
 
+                st.session_state.last_search_results = None
+
                 st.error(
                     "Yeh toh dukh khatam nahi hota sabka... No matching order found."
                 )
 
             else:
 
-                # =================================================
-                # ORDER INFORMATION
-                # =================================================
+                # a fresh search means any open refund confirmation
+                # from a previous order should not carry over
+                st.session_state.last_search_results = results
+                st.session_state.show_refund_confirm = False
 
-                first_row = results.iloc[0]
+    # -----------------------------------------------------
+    # RESULTS DISPLAY
+    # (reads from session_state, not the button click, so that
+    # checkboxes / quantity / amount / reason widgets inside the
+    # refund workflow below keep the results visible across their
+    # own reruns)
+    # -----------------------------------------------------
 
-                order_id = first_row["zop_order_id"]
+    results = st.session_state.last_search_results
 
-                zop_id = first_row["zop_id"]
+    if results is not None and not results.empty:
 
-                seller_order_id = first_row["seller_order_id"]
+        # =================================================
+        # ORDER INFORMATION
+        # =================================================
 
-                st.markdown(
-                    f"""
-                    <div class="glass-card" style="margin-top:1.4rem;">
-                        <div class="oos-order-found">
-                            <span class="tag">Mil Gaya! 🎯</span>
-                            <span class="id">{esc(order_id)}</span>
-                        </div>
-                        <div style="margin-top:0.4rem; font-size:0.85rem; font-weight:600; color:var(--accent-2);">
-                            PAISA HI PAISA HOGA! 💸
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
+        first_row = results.iloc[0]
+
+        order_id = first_row["zop_order_id"]
+
+        zop_id = first_row["zop_id"]
+
+        seller_order_id = first_row["seller_order_id"]
+
+        st.markdown(
+            f"""
+            <div class="glass-card" style="margin-top:1.4rem;">
+                <div class="oos-order-found">
+                    <span class="tag">Mil Gaya! 🎯</span>
+                    <span class="id">{esc(order_id)}</span>
+                </div>
+                <div style="margin-top:0.4rem; font-size:0.85rem; font-weight:600; color:var(--accent-2);">
+                    PAISA HI PAISA HOGA! 💸
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        # =================================================
+        # IDENTIFIERS
+        # =================================================
+
+        st.markdown(
+            '<div class="oos-section-title">📋 Identifiers (Kanoon Ke Haath)</div>',
+            unsafe_allow_html=True,
+        )
+
+        info1, info2, info3 = st.columns(3)
+
+        info1.markdown(id_card("ZOP Order ID", order_id), unsafe_allow_html=True)
+        info2.markdown(id_card("ZOP ID", zop_id), unsafe_allow_html=True)
+        info3.markdown(
+            id_card("Seller Order ID", seller_order_id), unsafe_allow_html=True
+        )
+
+        # =================================================
+        # STATUS SUMMARY
+        # =================================================
+
+        status_series = (
+            results["order_status"].fillna("").astype(str).str.strip().str.lower()
+        )
+
+        total_products = len(results)
+
+        delivered = status_series.eq("delivered").sum()
+
+        cancelled = status_series.eq("cancelled").sum()
+
+        in_transit = status_series.eq("in transit").sum()
+
+        pending = status_series.eq("pending").sum()
+
+        st.markdown(
+            '<div class="oos-section-title">📊 Status Summary (Bawaal Cheez Hai)</div>',
+            unsafe_allow_html=True,
+        )
+
+        col1, col2, col3, col4, col5 = st.columns(5)
+
+        col1.markdown(
+            stat_card("stat-total", "Total", total_products), unsafe_allow_html=True
+        )
+        col2.markdown(
+            stat_card("stat-delivered", "Delivered", delivered), unsafe_allow_html=True
+        )
+        col3.markdown(
+            stat_card("stat-cancelled", "Cancelled", cancelled), unsafe_allow_html=True
+        )
+        col4.markdown(
+            stat_card("stat-transit", "In Transit", in_transit), unsafe_allow_html=True
+        )
+        col5.markdown(
+            stat_card("stat-pending", "Pending", pending), unsafe_allow_html=True
+        )
+
+        # =================================================
+        # PRODUCT LEVEL DETAILS
+        # =================================================
+
+        st.markdown(
+            '<div class="oos-section-title">🛍️ Product Breakdown (Saman Ki List)</div>',
+            unsafe_allow_html=True,
+        )
+
+        render_product_table(results)
+
+        # =================================================
+        # RAW IDENTIFIERS
+        # =================================================
+
+        with st.expander("🔍 View all order identifiers (Pura Chittha)"):
+
+            identifiers = results[
+                [
+                    "zop_order_id",
+                    "zop_id",
+                    "seller_order_id",
+                    "awb",
+                ]
+            ].drop_duplicates()
+
+            st.dataframe(
+                identifiers,
+                use_container_width=True,
+                hide_index=True,
+            )
+
+        # =================================================
+        # V2 — REFUND WORKFLOW
+        # =================================================
+
+        st.markdown(
+            '<div class="oos-section-title">💸 Refund Zone (Paisa Wapas Karo Ji)</div>',
+            unsafe_allow_html=True,
+        )
+
+        # Build one entry per product/company row, each with a
+        # unique key so multiple rows never collide.
+        refund_products = []
+
+        for row_position, row in results.reset_index(drop=True).iterrows():
+
+            refund_products.append(
+                {
+                    "row_key": f"{order_id}_{row_position}_{row.get('variant_id')}",
+                    "title": row.get("title"),
+                    "variant_id": row.get("variant_id"),
+                    "quantity": row.get("quantity"),
+                    "final_price": row.get("final_price"),
+                    "sr_channel_id": row.get("sr_channel_id"),
+                    "zop_order_id": row.get("zop_order_id"),
+                }
+            )
+
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+
+        selected_products = []
+
+        for product in refund_products:
+
+            checkbox_key = f"refund_chk_{product['row_key']}"
+
+            product_label = (
+                str(product["title"])
+                if product["title"] not in (None, "")
+                else "Unnamed Product"
+            )
+
+            is_checked = st.checkbox(product_label, key=checkbox_key)
+
+            if is_checked:
+
+                selected_products.append(product)
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        refund_clicked = st.button(
+            "💸 Refund",
+            type="primary",
+            use_container_width=True,
+            disabled=len(selected_products) == 0,
+        )
+
+        if refund_clicked:
+
+            st.session_state.show_refund_confirm = True
+
+        # -------------------------------------------------
+        # REFUND CONFIRMATION
+        # -------------------------------------------------
+
+        if st.session_state.show_refund_confirm and selected_products:
+
+            st.markdown(
+                '<div class="oos-section-title">🎯 Refund Confirmation (Computer Ji, Dhyaan Se!)</div>',
+                unsafe_allow_html=True,
+            )
+
+            refund_rows = []
+
+            any_reason_missing = False
+
+            for product in selected_products:
+
+                qty_key = f"refund_qty_{product['row_key']}"
+                amt_key = f"refund_amt_{product['row_key']}"
+                reason_key = f"refund_reason_{product['row_key']}"
+
+                default_qty = (
+                    int(product["quantity"]) if pd.notna(product["quantity"]) else 1
                 )
 
-                # =================================================
-                # IDENTIFIERS
-                # =================================================
-
-                st.markdown(
-                    '<div class="oos-section-title">📋 Identifiers (Kanoon Ke Haath)</div>',
-                    unsafe_allow_html=True,
-                )
-
-                info1, info2, info3 = st.columns(3)
-
-                info1.markdown(
-                    id_card("ZOP Order ID", order_id), unsafe_allow_html=True
-                )
-                info2.markdown(id_card("ZOP ID", zop_id), unsafe_allow_html=True)
-                info3.markdown(
-                    id_card("Seller Order ID", seller_order_id), unsafe_allow_html=True
-                )
-
-                # =================================================
-                # STATUS SUMMARY
-                # =================================================
-
-                status_series = (
-                    results["order_status"]
-                    .fillna("")
-                    .astype(str)
-                    .str.strip()
-                    .str.lower()
-                )
-
-                total_products = len(results)
-
-                delivered = status_series.eq("delivered").sum()
-
-                cancelled = status_series.eq("cancelled").sum()
-
-                in_transit = status_series.eq("in transit").sum()
-
-                pending = status_series.eq("pending").sum()
-
-                st.markdown(
-                    '<div class="oos-section-title">📊 Status Summary (Bawaal Cheez Hai)</div>',
-                    unsafe_allow_html=True,
-                )
-
-                col1, col2, col3, col4, col5 = st.columns(5)
-
-                col1.markdown(
-                    stat_card("stat-total", "Total", total_products),
-                    unsafe_allow_html=True,
-                )
-                col2.markdown(
-                    stat_card("stat-delivered", "Delivered", delivered),
-                    unsafe_allow_html=True,
-                )
-                col3.markdown(
-                    stat_card("stat-cancelled", "Cancelled", cancelled),
-                    unsafe_allow_html=True,
-                )
-                col4.markdown(
-                    stat_card("stat-transit", "In Transit", in_transit),
-                    unsafe_allow_html=True,
-                )
-                col5.markdown(
-                    stat_card("stat-pending", "Pending", pending),
-                    unsafe_allow_html=True,
-                )
-
-                # =================================================
-                # PRODUCT LEVEL DETAILS
-                # =================================================
-
-                st.markdown(
-                    '<div class="oos-section-title">🛍️ Product Breakdown (Saman Ki List)</div>',
-                    unsafe_allow_html=True,
-                )
-
-                render_product_table(results)
-
-                # =================================================
-                # RAW IDENTIFIERS
-                # =================================================
-
-                with st.expander("🔍 View all order identifiers (Pura Chittha)"):
-
-                    identifiers = results[
-                        [
-                            "zop_order_id",
-                            "zop_id",
-                            "seller_order_id",
-                            "awb",
-                        ]
-                    ].drop_duplicates()
-
-                    st.dataframe(
-                        identifiers,
-                        use_container_width=True,
-                        hide_index=True,
+                try:
+                    default_amt = (
+                        float(product["final_price"])
+                        if pd.notna(product["final_price"])
+                        else 0.0
                     )
+                except (TypeError, ValueError):
+                    default_amt = 0.0
+
+                st.markdown(
+                    '<div class="glass-card" style="margin-top:1rem;">',
+                    unsafe_allow_html=True,
+                )
+
+                st.markdown(
+                    f'<div style="font-weight:700; font-size:1.05rem; margin-bottom:0.7rem;">{esc(product["title"])}</div>',
+                    unsafe_allow_html=True,
+                )
+
+                rc1, rc2, rc3 = st.columns(3)
+
+                qty_value = rc1.number_input(
+                    "Quantity",
+                    min_value=1,
+                    value=max(default_qty, 1),
+                    step=1,
+                    key=qty_key,
+                )
+
+                amount_value = rc2.number_input(
+                    "Refund Amount (₹)",
+                    min_value=0.0,
+                    value=default_amt,
+                    step=1.0,
+                    format="%.2f",
+                    key=amt_key,
+                )
+
+                reason_value = rc3.selectbox(
+                    "Reason",
+                    REFUND_REASON_OPTIONS,
+                    key=reason_key,
+                )
+
+                if reason_value == REFUND_REASON_PLACEHOLDER:
+                    any_reason_missing = True
+
+                refund_rows.append(
+                    {
+                        "sr_channel_id": product["sr_channel_id"],
+                        "zop_order_id": product["zop_order_id"],
+                        "variant_id": product["variant_id"],
+                        "quantity": qty_value,
+                        "amount": amount_value,
+                        "refund_reason": reason_value,
+                    }
+                )
+
+                st.markdown("</div>", unsafe_allow_html=True)
+
+            if any_reason_missing:
+
+                st.warning(
+                    "Har product ke liye Reason chunna zaroori hai — bina wajah refund lock nahi hoga!"
+                )
+
+            submit_clicked = st.button(
+                "🔒 Computer Ji, Lock Kar Dijiye!",
+                type="primary",
+                use_container_width=True,
+                disabled=any_reason_missing,
+            )
+
+            if submit_clicked and not any_reason_missing:
+
+                refund_payload = prepare_refund_payload(refund_rows)
+
+                # NOTE: this payload is prepared only, for now.
+                # The actual Google Sheet / refund automation
+                # connection will be wired up separately.
+
+                st.session_state.show_refund_confirm = False
+
+                st.success(
+                    "🎉 Lock Ho Gaya Bhidu! 7 Crore Jeet Gaye — Refund Submitted Successfully!"
+                )
 
 
 # =========================================================
 # ADMIN DASHBOARD
 # =========================================================
+
 
 else:
 
