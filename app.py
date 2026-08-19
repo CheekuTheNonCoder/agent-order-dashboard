@@ -17,7 +17,7 @@ from database import (
 # =========================================================
 
 st.set_page_config(
-    page_title="OrderOS",
+    page_title="OrderOS • Dekho Woh Aa Gaya",
     page_icon="◆",
     layout="wide",
 )
@@ -538,36 +538,53 @@ st.markdown(
 
 
 def get_greeting():
-    """Time-aware greeting. Returns (headline, subtitle)."""
+    """Time-aware, meme-flavoured greeting. Returns (headline, subtitle)."""
     hour = datetime.now().hour
 
     if 5 <= hour < 12:
-        return "Good morning. ☀️", "Fresh start. Let's find what you need."
+        return (
+            "Pratahkal! ☀️",
+            "Fresh start. Bilkul ricks nahi lene ka re baba! Let's find what you need.",
+        )
     elif 12 <= hour < 17:
-        return "Good afternoon.", "Still going strong. What are we looking for?"
+        return (
+            "Namaskar, dophar ho gayi! 🌤️",
+            "Abhi hum zinda hain! What order are we searching for?",
+        )
     elif 17 <= hour < 21:
-        return "Good evening.", "Let's make the next search easy."
+        return (
+            "Good evening, mitron. 🌙",
+            "Kya chal raha hai? Fogg chal raha hai? Let's make this search easy.",
+        )
     else:
-        return "Still awake?", "Night owl mode activated. 🦉"
+        return (
+            "Are you still awake? 🦉",
+            "Ye Baburao ka style hai! Sleeping schedule is crying in the corner.",
+        )
 
 
 def status_badge(status):
-    """Render a status value as a colored pill badge (display-only)."""
+    """Render a status value as a colored, meme-flavoured pill badge (display-only)."""
     raw = "" if status is None else str(status)
     key = raw.strip().lower()
 
     if key == "delivered":
         css_class = "badge-green"
+        label = "Delivered (Mazza Aaya!)"
     elif key == "cancelled":
         css_class = "badge-red"
+        label = "Cancelled (Dukh. Dard. Peeda.)"
     elif key == "in transit":
         css_class = "badge-blue"
+        label = "In Transit (Safar Jaari Hai)"
     elif key == "pending":
         css_class = "badge-orange"
+        label = "Pending (Thoda Thahar Jao...)"
     else:
         css_class = "badge-grey"
+        label = raw.title() if raw.strip() else "Unknown Status"
 
-    label = html.escape(raw) if raw.strip() else "—"
+    label = html.escape(label)
 
     return f'<span class="badge {css_class}"><span class="dot"></span>{label}</span>'
 
@@ -647,7 +664,7 @@ with st.sidebar:
                 ◆ OrderOS
             </div>
             <div style="font-size:0.8rem; color:var(--text-2); margin-top:0.15rem;">
-                Order intelligence, made simple.
+                Order intelligence, made simple. (Thoda tameez se, thoda masti se.)
             </div>
         </div>
         """,
@@ -671,9 +688,8 @@ if mode == "Agent":
     st.markdown(
         f"""
         <div class="oos-hero">
-            <div class="oos-eyebrow">OrderOS · Agent Order Intelligence</div>
-            <h1>Find any order, instantly.</h1>
-            <p class="oos-greeting">{greeting_headline}</p>
+            <div class="oos-eyebrow"><span class="pulse-dot"></span>OrderOS · Agent Order Intelligence</div>
+            <h1>{greeting_headline}</h1>
             <p class="oos-greeting-sub">{greeting_sub}</p>
         </div>
         """,
@@ -686,11 +702,11 @@ if mode == "Agent":
 
     search_value = st.text_input(
         "Universal Search",
-        placeholder="ZOP Order ID · ZOP ID · Seller Order ID · AWB",
+        placeholder="ZOP Order ID · ZOP ID · Seller Order ID · AWB... (Arre jaldi waha se hato!)",
     )
 
     search_button = st.button(
-        "🔍 Search",
+        "🔍 Search (Bhidu, jaldi kar!)",
         type="primary",
         use_container_width=True,
     )
@@ -699,7 +715,9 @@ if mode == "Agent":
 
         if not search_value.strip():
 
-            st.warning("Please enter an Order ID, ZOP ID, Seller Order ID or AWB.")
+            st.warning(
+                "O Bhai, Maro Mujhe Maro! Input empty hai. Please enter an Order ID, ZOP ID, Seller Order ID or AWB."
+            )
 
         else:
 
@@ -707,7 +725,9 @@ if mode == "Agent":
 
             if results.empty:
 
-                st.error("No matching order found.")
+                st.error(
+                    "Yeh toh dukh khatam nahi hota sabka... No matching order found."
+                )
 
             else:
 
@@ -727,8 +747,11 @@ if mode == "Agent":
                     f"""
                     <div class="glass-card" style="margin-top:1.4rem;">
                         <div class="oos-order-found">
-                            <span class="tag">Order found</span>
+                            <span class="tag">Mil Gaya! 🎯</span>
                             <span class="id">{esc(order_id)}</span>
+                        </div>
+                        <div style="margin-top:0.4rem; font-size:0.85rem; font-weight:600; color:var(--accent-2);">
+                            PAISA HI PAISA HOGA! 💸
                         </div>
                     </div>
                     """,
@@ -740,7 +763,7 @@ if mode == "Agent":
                 # =================================================
 
                 st.markdown(
-                    '<div class="oos-section-title">Order Information</div>',
+                    '<div class="oos-section-title">📋 Identifiers (Kanoon Ke Haath)</div>',
                     unsafe_allow_html=True,
                 )
 
@@ -777,7 +800,7 @@ if mode == "Agent":
                 pending = status_series.eq("pending").sum()
 
                 st.markdown(
-                    '<div class="oos-section-title">Status Summary</div>',
+                    '<div class="oos-section-title">📊 Status Summary (Bawaal Cheez Hai)</div>',
                     unsafe_allow_html=True,
                 )
 
@@ -809,7 +832,7 @@ if mode == "Agent":
                 # =================================================
 
                 st.markdown(
-                    '<div class="oos-section-title">Product / Company Details</div>',
+                    '<div class="oos-section-title">🛍️ Product Breakdown (Saman Ki List)</div>',
                     unsafe_allow_html=True,
                 )
 
@@ -819,7 +842,7 @@ if mode == "Agent":
                 # RAW IDENTIFIERS
                 # =================================================
 
-                with st.expander("View all order identifiers"):
+                with st.expander("🔍 View all order identifiers (Pura Chittha)"):
 
                     identifiers = results[
                         [
@@ -846,10 +869,10 @@ else:
     st.markdown(
         """
         <div class="oos-hero">
-            <div class="oos-eyebrow">OrderOS · Control Center</div>
-            <h1>Keep the data fresh.</h1>
+            <div class="oos-eyebrow"><span class="pulse-dot"></span>OrderOS · Baburao Control Console</div>
+            <h1>Control Center</h1>
             <p class="oos-greeting-sub">
-                Upload today's complete order dump and keep OrderOS fresh.
+                Yeh Baburao ka style hai! Upload today's complete order dump smoothly.
             </p>
         </div>
         """,
@@ -867,17 +890,26 @@ else:
         )
 
         st.markdown(
-            '<div class="oos-section-title" style="margin-top:0;">Admin Login</div>',
+            """
+            <div style="text-align:center; margin-bottom: 0.6rem;">
+                <div style="font-size:2.2rem; margin-bottom:0.3rem;">🛡️</div>
+                <div class="oos-section-title" style="margin-top:0;">Baburao's Lock Screen</div>
+                <div style="font-size:0.85rem; color:var(--text-2); margin-bottom:0.8rem;">
+                    Enter verification credentials before we unleash the databases.
+                </div>
+            </div>
+            """,
             unsafe_allow_html=True,
         )
 
         password = st.text_input(
             "Admin Password",
             type="password",
+            placeholder="Secret key de re baba!",
         )
 
         login_button = st.button(
-            "Login",
+            "Verify & Grant Access (Sabaash Beta!)",
             type="primary",
         )
 
@@ -894,7 +926,7 @@ else:
 
             else:
 
-                st.error("Incorrect password.")
+                st.error("Bilkul Chup! Incorrect password. Gunda banega re tu?")
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -908,12 +940,12 @@ else:
 
         with top1:
 
-            st.success("Admin access granted.")
+            st.success("🛡️ Session Authenticated. Full power access activated.")
 
         with top2:
 
             if st.button(
-                "Logout",
+                "Logout Console",
                 use_container_width=True,
             ):
 
@@ -926,7 +958,8 @@ else:
         # =================================================
 
         st.markdown(
-            '<div class="oos-section-title">Database</div>', unsafe_allow_html=True
+            '<div class="oos-section-title">📊 Database Statistics (Pura Ka Pura)</div>',
+            unsafe_allow_html=True,
         )
 
         record_count = get_order_count()
@@ -972,12 +1005,12 @@ else:
         # =================================================
 
         st.markdown(
-            '<div class="oos-section-title">Today\'s Full Order Dump</div>',
+            '<div class="oos-section-title">📤 Upload Today\'s Full Order Dump</div>',
             unsafe_allow_html=True,
         )
 
         st.info(
-            "This upload replaces the existing dataset with today's complete order dump."
+            "This upload replaces the existing dataset. Sambhalke, badme mat bolna data ud gaya!"
         )
 
         uploaded_file = st.file_uploader(
@@ -1032,7 +1065,7 @@ else:
 
                     df["quantity"] = numeric_qty.astype("int64")
 
-                st.write(f"**Rows detected:** {len(df):,}")
+                st.write(f"**Rows detected (Total Maal):** {len(df):,}")
 
                 # -----------------------------------------
                 # COLUMN VALIDATION
@@ -1044,7 +1077,9 @@ else:
 
                 if missing_columns:
 
-                    st.error("❌ Required columns are missing.")
+                    st.error(
+                        "❌ Operational Halt! Required columns are missing. Yeh kya jhamela bana diya?"
+                    )
 
                     st.write("Missing columns:")
 
@@ -1058,14 +1093,14 @@ else:
                 # VALID FILE
                 # -----------------------------------------
 
-                st.success("✅ File structure is valid.")
+                st.success("✅ Bawaal Cheez Hai! File structure is perfectly valid.")
 
                 # -----------------------------------------
                 # PREVIEW
                 # -----------------------------------------
 
                 st.markdown(
-                    '<div class="oos-section-title">File Preview</div>',
+                    '<div class="oos-section-title">Schema Preview (Ek Jhalak)</div>',
                     unsafe_allow_html=True,
                 )
 
@@ -1076,8 +1111,8 @@ else:
                 )
 
                 st.warning(
-                    "Uploading this file will replace the current database with "
-                    "this complete daily dump."
+                    "Uploading this file will replace the current database. "
+                    "Risk hai toh ishq hai! Confirm karke aage badho."
                 )
 
                 # -----------------------------------------
@@ -1089,22 +1124,26 @@ else:
                 if confirm:
 
                     if st.button(
-                        "💾  Replace Database",
+                        "💾 Replace Database (Karde Bhai!)",
                         type="primary",
                         use_container_width=True,
                     ):
 
-                        with st.spinner("Replacing database..."):
+                        with st.spinner(
+                            "Processing transaction data... Sabra karo bhidu!"
+                        ):
 
                             replace_orders(df, uploaded_file.name)
 
-                        st.success(f"Successfully uploaded {len(df):,} records.")
+                        st.success(
+                            f"🚀 Uploaded {len(df):,} records successfully! Paisa hi paisa!"
+                        )
 
                         st.rerun()
 
             except Exception as e:
 
-                st.error("❌ Unable to process file.")
+                st.error("❌ Parser processing failure on file.")
 
                 st.exception(e)
 
@@ -1113,7 +1152,8 @@ else:
         # =================================================
 
         st.markdown(
-            '<div class="oos-section-title">Latest Upload</div>', unsafe_allow_html=True
+            '<div class="oos-section-title">📋 System Archive Log</div>',
+            unsafe_allow_html=True,
         )
 
         latest_upload = get_last_upload()
@@ -1133,4 +1173,4 @@ else:
 
         else:
 
-            st.info("No order dump has been uploaded yet.")
+            st.info("No order dump has been uploaded yet. Abhi tak sannata hai bhidu.")
