@@ -1,7 +1,8 @@
-import streamlit as st
-import pandas as pd
+import html
 from datetime import datetime
-from zoneinfo import ZoneInfo
+
+import pandas as pd
+import streamlit as st
 
 from database import (
     initialize_database,
@@ -16,19 +17,21 @@ from database import (
 # =========================================================
 
 st.set_page_config(
-    page_title="OrderOS • Dekho Woh Aa Gaya",
-    page_icon="📦",
+    page_title="OrderOS",
+    page_icon="◆",
     layout="wide",
 )
 
+
 # =========================================================
-# DATABASE INITIALIZATION
+# DATABASE
 # =========================================================
 
 initialize_database()
 
+
 # =========================================================
-# REQUIRED COLUMNS
+# REQUIRED COLUMNS  (unchanged — do not modify)
 # =========================================================
 
 REQUIRED_COLUMNS = [
@@ -48,6 +51,7 @@ REQUIRED_COLUMNS = [
     "final_price",
 ]
 
+
 # =========================================================
 # SESSION
 # =========================================================
@@ -55,236 +59,473 @@ REQUIRED_COLUMNS = [
 if "admin_logged_in" not in st.session_state:
     st.session_state.admin_logged_in = False
 
+
 # =========================================================
-# INDIAN MEME + APPLE GLASSMORPHISM CSS
+# GLASSMORPHISM DESIGN SYSTEM
 # =========================================================
 
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
-    
-    /* Target App Base Theme with glowing reactive gradients */
-    html, body, [data-testid="stAppViewContainer"] {
-        background-color: #050811 !important;
-        background-image: 
-            radial-gradient(at 10% 20%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
-            radial-gradient(at 90% 80%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
-            radial-gradient(at 50% 50%, rgba(236, 72, 153, 0.05) 0px, transparent 50%) !important;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
-        color: #e2e8f0 !important;
-    }
-    
-    [data-testid="stHeader"] {
-        background-color: rgba(5, 8, 17, 0.4) !important;
-        backdrop-filter: blur(12px);
+
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    :root {
+        --bg-0: #06070A;
+        --bg-1: #0B0D12;
+        --bg-2: #12141B;
+        --glass: rgba(255, 255, 255, 0.05);
+        --glass-strong: rgba(255, 255, 255, 0.09);
+        --glass-border: rgba(255, 255, 255, 0.12);
+        --line: rgba(255, 255, 255, 0.10);
+
+        --text-1: #F5F5F7;
+        --text-2: #A1A1A8;
+        --text-3: #75757D;
+
+        --accent: #0A84FF;
+        --accent-2: #64D2FF;
+        --accent-3: #BF5AF2;
+        --accent-soft: rgba(10, 132, 255, 0.18);
+
+        --green: #30D158;
+        --green-soft: rgba(48, 209, 88, 0.16);
+        --red: #FF453A;
+        --red-soft: rgba(255, 69, 58, 0.16);
+        --blue: #0A84FF;
+        --blue-soft: rgba(10, 132, 255, 0.16);
+        --orange: #FF9F0A;
+        --orange-soft: rgba(255, 159, 10, 0.16);
+        --grey: #9A9AA1;
+        --grey-soft: rgba(154, 154, 161, 0.14);
+
+        --radius-lg: 24px;
+        --radius-md: 16px;
+        --radius-sm: 10px;
+        --shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 2px 10px rgba(0, 0, 0, 0.35);
     }
 
-    [data-testid="stSidebar"] {
-        background-color: rgba(10, 15, 30, 0.7) !important;
-        backdrop-filter: blur(24px) !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+    html, body, [class*="css"] {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display',
+                      'SF Pro Text', 'Segoe UI', 'Apple Color Emoji', 'Segoe UI Emoji',
+                      'Segoe UI Symbol', 'Noto Color Emoji', sans-serif !important;
+        color: var(--text-1);
     }
 
-    /* Glass Cards */
-    .glass-card {
-        background: rgba(255, 255, 255, 0.02) !important;
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.07);
-        border-radius: 16px;
-        padding: 24px;
-        margin-bottom: 20px;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
-        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+    /* ---- background: deep space + drifting aurora blobs ---- */
+    .stApp {
+        position: relative;
+        overflow-x: hidden;
+        min-height: 100vh;
+        background:
+            radial-gradient(1200px 600px at 15% -10%, rgba(10, 132, 255, 0.10), transparent 60%),
+            radial-gradient(1000px 600px at 100% 10%, rgba(191, 90, 242, 0.08), transparent 55%),
+            linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 55%, var(--bg-0) 100%);
     }
-    .glass-card:hover {
-        transform: translateY(-2px);
-        border-color: rgba(139, 92, 246, 0.3);
-        box-shadow: 0 12px 40px 0 rgba(139, 92, 246, 0.15);
+    .stApp::before, .stApp::after {
+        content: "";
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(110px);
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0.5;
     }
-    
-    /* Metrics block styling */
-    .metric-grid {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 16px;
-        margin-bottom: 24px;
+    .stApp::before {
+        width: 620px;
+        height: 620px;
+        top: -220px;
+        left: -160px;
+        background: radial-gradient(circle, var(--accent-2), transparent 70%);
+        animation: auroraDrift1 20s ease-in-out infinite alternate;
     }
-    
-    .metric-container {
-        flex: 1;
-        min-width: 140px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        text-align: center;
-        padding: 18px 12px;
-        border-radius: 14px;
-        background: rgba(255, 255, 255, 0.01);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        transition: all 0.2s ease;
+    .stApp::after {
+        width: 560px;
+        height: 560px;
+        bottom: -200px;
+        right: -140px;
+        background: radial-gradient(circle, var(--accent-3), transparent 70%);
+        animation: auroraDrift2 24s ease-in-out infinite alternate;
     }
-    .metric-container:hover {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        transform: scale(1.02);
+    @keyframes auroraDrift1 {
+        from { transform: translate(0, 0) scale(1); }
+        to   { transform: translate(70px, 50px) scale(1.15); }
     }
-    .metric-label {
-        font-size: 10px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 1.5px;
-        color: #94a3b8;
-        margin-bottom: 6px;
+    @keyframes auroraDrift2 {
+        from { transform: translate(0, 0) scale(1); }
+        to   { transform: translate(-60px, -40px) scale(1.12); }
     }
-    .metric-value {
-        font-size: 28px;
-        font-weight: 800;
-        color: #ffffff;
-    }
-    
-    /* Glowing card status markers */
-    .metric-total { border-bottom: 3px solid #a855f7; }
-    .metric-delivered { border-bottom: 3px solid #22c55e; }
-    .metric-cancelled { border-bottom: 3px solid #ef4444; }
-    .metric-transit { border-bottom: 3px solid #3b82f6; }
-    .metric-pending { border-bottom: 3px solid #eab308; }
-    .metric-rto { border-bottom: 3px solid #f97316; }
+    .block-container { position: relative; z-index: 1; }
 
-    /* Streamlit overrides */
+    /* ---- hide default chrome ---- */
+    #MainMenu, footer, header[data-testid="stHeader"] {
+        background: transparent;
+    }
+    header[data-testid="stHeader"] { box-shadow: none; }
+
+    .block-container {
+        padding-top: 2.2rem;
+        padding-bottom: 3rem;
+        max-width: 1180px;
+    }
+
+    /* ---- sidebar ---- */
+    section[data-testid="stSidebar"] {
+        position: relative;
+        z-index: 2;
+        background: rgba(10, 11, 15, 0.7);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border-right: 1px solid var(--line);
+    }
+    section[data-testid="stSidebar"] .block-container {
+        padding-top: 2rem;
+    }
+
+    /* ---- generic text ---- */
+    h1, h2, h3 { color: var(--text-1); letter-spacing: -0.02em; }
+    p, span, label, div { color: inherit; }
+
+    /* ---- widget labels: small muted caption, consistent everywhere ---- */
+    [data-testid="stWidgetLabel"] p {
+        font-size: 0.72rem !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.08em !important;
+        text-transform: uppercase !important;
+        color: var(--text-3) !important;
+        margin-bottom: 0.35rem !important;
+    }
+
+    /* ---- inputs ---- */
+    div[data-testid="stTextInput"] div[data-baseweb="input"] {
+        background: var(--glass-strong) !important;
+        border: 1px solid var(--line) !important;
+        border-radius: var(--radius-md) !important;
+        backdrop-filter: blur(14px);
+        box-shadow: none !important;
+        transition: box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+    div[data-testid="stTextInput"] div[data-baseweb="input"]:focus-within {
+        border-color: var(--accent-2) !important;
+        box-shadow: 0 0 0 3px rgba(100, 210, 255, 0.16), 0 0 26px rgba(100, 210, 255, 0.22) !important;
+    }
+    div[data-testid="stTextInput"] input {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        outline: none !important;
+        padding: 0.85rem 1.1rem !important;
+        font-size: 1.02rem !important;
+        color: var(--text-1) !important;
+    }
+    div[data-testid="stTextInput"] input::placeholder { color: var(--text-3); opacity: 1; }
+
+    /* ---- buttons ---- */
     .stButton > button {
-        background: rgba(255, 255, 255, 0.03) !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        border-radius: 10px !important;
-        color: #f1f5f9 !important;
-        padding: 10px 24px !important;
-        font-size: 14px !important;
+        border-radius: var(--radius-sm) !important;
+        border: 1px solid var(--glass-border) !important;
+        background: var(--glass-strong) !important;
+        color: var(--text-1) !important;
         font-weight: 600 !important;
-        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-        backdrop-filter: blur(8px);
+        padding: 0.65rem 1.3rem !important;
+        backdrop-filter: blur(14px);
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        box-shadow: var(--shadow);
     }
     .stButton > button:hover {
-        background: rgba(255, 255, 255, 0.08) !important;
-        border-color: rgba(255, 255, 255, 0.2) !important;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(255, 255, 255, 0.05);
+        transform: translateY(-2px);
+        border-color: rgba(255, 255, 255, 0.24) !important;
     }
     .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%) !important;
+        background: linear-gradient(135deg, var(--accent-2), var(--accent) 60%, var(--accent-3)) !important;
         border: none !important;
-        color: #ffffff !important;
-        box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3) !important;
+        color: #06070A !important;
+        font-weight: 700 !important;
+        box-shadow: 0 10px 30px rgba(10, 132, 255, 0.35);
     }
     .stButton > button[kind="primary"]:hover {
-        background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%) !important;
-        box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5) !important;
+        box-shadow: 0 14px 40px rgba(100, 210, 255, 0.45);
+        transform: translateY(-2px) scale(1.01);
     }
 
-    div[data-baseweb="input"] {
-        background-color: rgba(255, 255, 255, 0.02) !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        border-radius: 12px !important;
-        transition: all 0.2s ease !important;
+    /* ---- radio (mode switch) ---- */
+    div[role="radiogroup"] {
+        gap: 0.35rem;
     }
-    div[data-baseweb="input"]:focus-within {
-        border-color: #8b5cf6 !important;
-        box-shadow: 0 0 15px rgba(139, 92, 246, 0.25) !important;
-        background-color: rgba(255, 255, 255, 0.04) !important;
+    div[role="radiogroup"] label {
+        background: var(--glass);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-sm);
+        padding: 0.45rem 0.7rem;
+        transition: background 0.15s ease, transform 0.15s ease;
     }
-    div[data-baseweb="input"] input {
-        color: #ffffff !important;
-        font-size: 15px;
+    div[role="radiogroup"] label:hover {
+        background: var(--glass-strong);
+        transform: translateY(-1px);
     }
 
-    /* Headings */
-    h1, h2, h3, h4, h5, h6 {
-        font-family: 'Space Grotesk', sans-serif !important;
-        font-weight: 700 !important;
-        letter-spacing: -0.5px !important;
-        color: #ffffff !important;
+    /* ---- dataframe ---- */
+    div[data-testid="stDataFrame"] {
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow);
     }
-    
-    .sidebar-logo {
-        font-family: 'Space Grotesk', sans-serif;
-        font-size: 1.6rem;
-        font-weight: 700;
-        letter-spacing: -1px;
-        background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 2rem;
+
+    /* ---- expander ---- */
+    details {
+        background: var(--glass);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md) !important;
+        backdrop-filter: blur(14px);
+    }
+
+    /* ---- dividers less heavy ---- */
+    hr { border-color: var(--line) !important; margin: 1.6rem 0 !important; }
+
+    /* =====================================================
+       CUSTOM COMPONENTS
+    ===================================================== */
+
+    .oos-eyebrow {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 0.55rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--accent-2);
+        margin-bottom: 0.5rem;
     }
-    
-    .hero-title {
-        font-family: 'Space Grotesk', sans-serif;
-        font-size: 3.2rem;
-        font-weight: 800;
-        background: linear-gradient(135deg, #ffffff 30%, #94a3b8 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin: 0;
+    .oos-eyebrow .pulse-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent-2);
+        box-shadow: 0 0 0 0 rgba(100, 210, 255, 0.55);
+        animation: pulseDot 2s infinite;
+        flex-shrink: 0;
     }
-    .hero-subtitle {
-        font-size: 1.2rem;
-        color: #94a3b8;
-        font-weight: 400;
-        margin-top: 6px;
-        margin-bottom: 2rem;
+    @keyframes pulseDot {
+        0%   { box-shadow: 0 0 0 0 rgba(100, 210, 255, 0.55); }
+        70%  { box-shadow: 0 0 0 9px rgba(100, 210, 255, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(100, 210, 255, 0); }
     }
 
-    /* Animations */
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(16px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    .oos-hero {
+        animation: fadeUp 0.5s ease both;
+        margin-bottom: 1.6rem;
     }
-    .animate-fade-up {
-        animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    .oos-hero h1 {
+        font-size: 2.6rem;
+        font-weight: 800;
+        margin: 0 0 0.15rem 0;
+        letter-spacing: -0.03em;
+        background: linear-gradient(120deg, #FFFFFF 0%, #FFFFFF 45%, var(--accent-2) 75%, var(--accent-3) 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        color: transparent;
     }
-    
-    /* Elegant labels */
-    .field-label {
-        font-size: 11px;
+    .oos-hero .oos-sub {
+        color: var(--text-2);
+        font-size: 1.02rem;
+        margin-bottom: 1.1rem;
+    }
+    .oos-greeting {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: var(--text-1);
+        margin: 0;
+    }
+    .oos-greeting-sub {
+        color: var(--text-2);
+        font-size: 0.94rem;
+        margin-top: 0.1rem;
+    }
+
+    .glass-card {
+        position: relative;
+        overflow: hidden;
+        background: var(--glass);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        padding: 1.4rem 1.6rem;
+        animation: fadeUp 0.45s ease both;
+    }
+    .glass-card::before, .id-card::before, .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -160%;
+        width: 55%;
+        height: 100%;
+        background: linear-gradient(115deg, transparent, rgba(255, 255, 255, 0.10), transparent);
+        transform: skewX(-18deg);
+        transition: left 0.65s ease;
+        pointer-events: none;
+    }
+    .glass-card:hover::before, .id-card:hover::before, .stat-card:hover::before {
+        left: 160%;
+    }
+
+    .oos-order-found {
+        display: flex;
+        align-items: baseline;
+        gap: 0.7rem;
+        margin-bottom: 0.2rem;
+    }
+    .oos-order-found .tag {
+        font-size: 0.72rem;
         font-weight: 700;
+        letter-spacing: 0.1em;
         text-transform: uppercase;
-        letter-spacing: 1.5px;
-        color: #64748b;
-        margin-bottom: 8px;
+        background: var(--green-soft);
+        color: var(--green);
+        padding: 0.22rem 0.6rem;
+        border-radius: 999px;
     }
-    
-    /* Clean custom alert frames */
-    .custom-error {
-        background: rgba(239, 68, 68, 0.08);
-        border: 1px solid rgba(239, 68, 68, 0.2);
-        border-radius: 12px;
-        padding: 16px;
-        color: #fca5a5;
-        margin-bottom: 20px;
+    .oos-order-found .id {
+        font-size: 1.5rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
     }
-    .custom-success {
-        background: rgba(34, 197, 94, 0.08);
-        border: 1px solid rgba(34, 197, 94, 0.25);
-        border-radius: 12px;
-        padding: 16px;
-        color: #86efac;
-        margin-bottom: 20px;
+
+    .id-card {
+        position: relative;
+        overflow: hidden;
+        background: var(--glass);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        padding: 0.9rem 1.1rem;
+        backdrop-filter: blur(14px);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        height: 100%;
     }
-    .custom-meme-quote {
-        font-style: italic;
-        color: #a78bfa;
-        font-weight: 500;
-        margin-top: 5px;
+    .id-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+    .id-card .label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-3);
+        margin-bottom: 0.25rem;
     }
+    .id-card .value {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--text-1);
+        word-break: break-word;
+    }
+
+    .stat-card {
+        position: relative;
+        overflow: hidden;
+        background: var(--glass);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        padding: 1rem 1.1rem;
+        backdrop-filter: blur(14px);
+        text-align: left;
+        transition: transform 0.15s ease;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        height: 100%;
+    }
+    .stat-card:hover { transform: translateY(-2px); }
+    .stat-card .stat-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-3);
+        margin-bottom: 0.35rem;
+    }
+    .stat-card .stat-value {
+        font-size: 1.7rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+    }
+    .stat-total .stat-value { color: var(--text-1); }
+    .stat-delivered .stat-value { color: var(--green); }
+    .stat-cancelled .stat-value { color: var(--red); }
+    .stat-transit .stat-value { color: var(--blue); }
+    .stat-pending .stat-value { color: var(--orange); }
+
+    /* ---- product table ---- */
+    .oos-table-wrap {
+        background: var(--glass);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        backdrop-filter: blur(16px);
+        overflow-x: auto;
+        box-shadow: var(--shadow);
+    }
+    table.oos-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.92rem;
+    }
+    table.oos-table thead th {
+        text-align: left;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-3);
+        padding: 0.85rem 1rem;
+        border-bottom: 1px solid var(--line);
+        white-space: nowrap;
+    }
+    table.oos-table tbody td {
+        padding: 0.8rem 1rem;
+        border-bottom: 1px solid var(--line);
+        color: var(--text-1);
+        white-space: nowrap;
+    }
+    table.oos-table tbody tr:last-child td { border-bottom: none; }
+    table.oos-table tbody tr:hover { background: rgba(100, 210, 255, 0.05); }
+
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 0.28rem 0.7rem;
+        border-radius: 999px;
+        white-space: nowrap;
+    }
+    .badge .dot {
+        width: 7px; height: 7px; border-radius: 50%; display: inline-block;
+    }
+    .badge-green { background: var(--green-soft); color: var(--green); box-shadow: 0 0 14px rgba(48, 209, 88, 0.18); }
+    .badge-green .dot { background: var(--green); }
+    .badge-red { background: var(--red-soft); color: var(--red); box-shadow: 0 0 14px rgba(255, 69, 58, 0.18); }
+    .badge-red .dot { background: var(--red); }
+    .badge-blue { background: var(--blue-soft); color: var(--blue); box-shadow: 0 0 14px rgba(10, 132, 255, 0.18); }
+    .badge-blue .dot { background: var(--blue); }
+    .badge-orange { background: var(--orange-soft); color: var(--orange); box-shadow: 0 0 14px rgba(255, 159, 10, 0.18); }
+    .badge-orange .dot { background: var(--orange); }
+    .badge-grey { background: var(--grey-soft); color: var(--grey); }
+    .badge-grey .dot { background: var(--grey); }
+
+    .oos-section-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--text-1);
+        margin: 1.5rem 0 0.7rem 0;
+    }
+
+    @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
     </style>
     """,
     unsafe_allow_html=True,
@@ -292,80 +533,131 @@ st.markdown(
 
 
 # =========================================================
-# MEME-AWARE TIME ENGINE
+# HELPERS
 # =========================================================
 
 
-def get_meme_time_greeting():
-    try:
-        india_time = datetime.now(ZoneInfo("Asia/Kolkata"))
-        hour = india_time.hour
-    except Exception:
-        hour = 12
+def get_greeting():
+    """Time-aware greeting. Returns (headline, subtitle)."""
+    hour = datetime.now().hour
 
     if 5 <= hour < 12:
-        return (
-            "Pratahkal! ☀️",
-            "Fresh start. Bilkul ricks nahi lene ka re baba! Let's find what you need.",
-        )
+        return "Good morning. ☀️", "Fresh start. Let's find what you need."
     elif 12 <= hour < 17:
-        return (
-            "Namaskar, dophar ho gayi! 🌤️",
-            "Abhi hum zinda hain! What order are we searching for?",
-        )
-    elif 17 <= hour < 22:
-        return (
-            "Good evening, mitron. 🌙",
-            "Kya chal raha hai? Fogg chal raha hai? Let's make this search easy.",
-        )
+        return "Good afternoon.", "Still going strong. What are we looking for?"
+    elif 17 <= hour < 21:
+        return "Good evening.", "Let's make the next search easy."
     else:
-        return (
-            "Are you still awake? 🦉",
-            "Dehaadi majdoori! Ghar jaakr sutti babu.",
+        return "Still awake?", "Night owl mode activated. 🦉"
+
+
+def status_badge(status):
+    """Render a status value as a colored pill badge (display-only)."""
+    raw = "" if status is None else str(status)
+    key = raw.strip().lower()
+
+    if key == "delivered":
+        css_class = "badge-green"
+    elif key == "cancelled":
+        css_class = "badge-red"
+    elif key == "in transit":
+        css_class = "badge-blue"
+    elif key == "pending":
+        css_class = "badge-orange"
+    else:
+        css_class = "badge-grey"
+
+    label = html.escape(raw) if raw.strip() else "—"
+
+    return f'<span class="badge {css_class}"><span class="dot"></span>{label}</span>'
+
+
+def format_amount(value):
+    try:
+        return f"₹{float(value):,.2f}"
+    except (TypeError, ValueError):
+        return html.escape(str(value)) if value is not None else "—"
+
+
+def esc(value):
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return "—"
+    return html.escape(str(value))
+
+
+def render_product_table(df):
+    """Render the product/company table as a premium HTML table with status badges."""
+
+    rows_html = []
+
+    for _, row in df.iterrows():
+        rows_html.append(
+            "<tr>"
+            f"<td>{esc(row.get('company_name'))}</td>"
+            f"<td>{esc(row.get('title'))}</td>"
+            f"<td>{esc(row.get('variant_id'))}</td>"
+            f"<td>{esc(row.get('quantity'))}</td>"
+            f"<td>{status_badge(row.get('order_status'))}</td>"
+            f"<td>{esc(row.get('awb'))}</td>"
+            f"<td>{esc(row.get('sr_channel_id'))}</td>"
+            f"<td>{format_amount(row.get('final_price'))}</td>"
+            "</tr>"
         )
 
+    table_html = (
+        '<div class="oos-table-wrap"><table class="oos-table">'
+        "<thead><tr>"
+        "<th>Company</th><th>Product</th><th>Variant</th><th>Qty</th>"
+        "<th>Status</th><th>AWB</th><th>Channel ID</th><th>Amount</th>"
+        "</tr></thead>"
+        f"<tbody>{''.join(rows_html)}</tbody>"
+        "</table></div>"
+    )
+
+    st.markdown(table_html, unsafe_allow_html=True)
+
+
+def id_card(label, value):
+    return (
+        '<div class="id-card">'
+        f'<div class="label">{html.escape(label)}</div>'
+        f'<div class="value">{esc(value)}</div>'
+        "</div>"
+    )
+
+
+def stat_card(css_class, label, value):
+    return (
+        f'<div class="stat-card {css_class}">'
+        f'<div class="stat-label">{html.escape(label)}</div>'
+        f'<div class="stat-value">{value}</div>'
+        "</div>"
+    )
+
 
 # =========================================================
-# HELPER FOR MEME STATUS BADGES
+# SIDEBAR
 # =========================================================
 
+with st.sidebar:
+    st.markdown(
+        """
+        <div style="margin-bottom: 1.6rem;">
+            <div style="font-size:1.3rem; font-weight:800; letter-spacing:-0.02em;">
+                ◆ OrderOS
+            </div>
+            <div style="font-size:0.8rem; color:var(--text-2); margin-top:0.15rem;">
+                Order intelligence, made simple.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-def format_status_badge(status_str):
-    if not isinstance(status_str, str):
-        return "⚪ Unknown Status"
-    status_clean = status_str.strip().lower()
-    if status_clean == "delivered":
-        return "🟢 Delivered (Mazza Aaya!)"
-    elif status_clean == "cancelled":
-        return "🔴 Cancelled (Dukh. Dard. Peeda.)"
-    elif status_clean == "in transit":
-        return "🔵 In Transit (Safar Jaari Hai)"
-    elif status_clean == "pending":
-        return "🟡 Pending (Thoda Thahar Jao...)"
-    else:
-        return f"⚪ {status_str.title()}"
-
-
-# =========================================================
-# SIDEBAR SETUP (Where 'mode' is defined)
-# =========================================================
-
-st.sidebar.markdown(
-    """
-    <div class="sidebar-logo">
-        <span>📦</span> OrderOS
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-mode = st.sidebar.radio(
-    "Select Mode",
-    [
-        "Agent",
-        "Admin",
-    ],
-)
+    mode = st.radio(
+        "Select Mode",
+        ["Agent", "Admin"],
+    )
 
 
 # =========================================================
@@ -374,116 +666,98 @@ mode = st.sidebar.radio(
 
 if mode == "Agent":
 
-    greeting_title, greeting_sub = get_meme_time_greeting()
+    greeting_headline, greeting_sub = get_greeting()
 
-    # Dynamic Hero Welcome Screen
     st.markdown(
         f"""
-        <div class="animate-fade-up" style="margin-top: 1.5rem; margin-bottom: 1rem;">
-            <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 3px; color: #a855f7;">OrderOS Agent Intelligence</span>
-            <h1 class="hero-title">{greeting_title}</h1>
-            <p class="hero-subtitle">{greeting_sub}</p>
+        <div class="oos-hero">
+            <div class="oos-eyebrow">OrderOS · Agent Order Intelligence</div>
+            <h1>Find any order, instantly.</h1>
+            <p class="oos-greeting">{greeting_headline}</p>
+            <p class="oos-greeting-sub">{greeting_sub}</p>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    # Search Box with Premium Glass Panel
-    st.markdown(
-        '<div class="field-label">Universal Search Identifier</div>',
-        unsafe_allow_html=True,
-    )
+    # -----------------------------------------------------
+    # UNIVERSAL SEARCH
+    # -----------------------------------------------------
 
     search_value = st.text_input(
-        "Universal Search Input",
-        placeholder="Enter ZOP Order ID / ZOP ID / Seller Order ID / AWB... (Arre jaldi waha se hato!)",
-        label_visibility="collapsed",
+        "Universal Search",
+        placeholder="ZOP Order ID · ZOP ID · Seller Order ID · AWB",
     )
 
-    st.markdown('<div style="margin-top:12px;"></div>', unsafe_allow_html=True)
-
     search_button = st.button(
-        "🔍 Are jaldi karo subha panwel nikalna hai",
+        "🔍 Search",
         type="primary",
         use_container_width=True,
     )
 
-    if search_button or (search_value.strip() and not search_button):
+    if search_button:
 
         if not search_value.strip():
-            st.markdown(
-                """
-                <div class="custom-error">
-                    <strong>O Bhai, Maro Mujhe Maro!</strong> Input empty hai. Please enter an Order ID, ZOP ID, Seller ID, or AWB first.
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+
+            st.warning("Please enter an Order ID, ZOP ID, Seller Order ID or AWB.")
+
         else:
+
             results = search_orders(search_value)
 
             if results.empty:
-                st.markdown(
-                    """
-                    <div class="custom-error">
-                        <strong>Yeh toh dukh khatam nahi hota sabka...</strong> No matching order found! (Abhi maza aayega na bhidu)
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+
+                st.error("No matching order found.")
+
             else:
+
+                # =================================================
+                # ORDER INFORMATION
+                # =================================================
+
                 first_row = results.iloc[0]
+
                 order_id = first_row["zop_order_id"]
+
                 zop_id = first_row["zop_id"]
+
                 seller_order_id = first_row["seller_order_id"]
 
-                # Found Header
                 st.markdown(
                     f"""
-                    <div class="glass-card animate-fade-up" style="margin-top: 2rem; border-left: 5px solid #8b5cf6;">
-                        <span style="font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #a78bfa; font-weight: 700;">PAISA HI PAISA HOGA! 💸</span>
-                        <h2 style="margin: 4px 0 0 0; font-size: 2rem; font-weight: 800;">Order Found: {order_id}</h2>
+                    <div class="glass-card" style="margin-top:1.4rem;">
+                        <div class="oos-order-found">
+                            <span class="tag">Order found</span>
+                            <span class="id">{esc(order_id)}</span>
+                        </div>
                     </div>
                     """,
                     unsafe_allow_html=True,
                 )
 
-                # Identifiers Cards
-                st.markdown("### 📋 Identifiers (Kanoon Ke Haath)")
+                # =================================================
+                # IDENTIFIERS
+                # =================================================
+
+                st.markdown(
+                    '<div class="oos-section-title">Order Information</div>',
+                    unsafe_allow_html=True,
+                )
+
                 info1, info2, info3 = st.columns(3)
 
-                with info1:
-                    st.markdown(
-                        f"""
-                        <div class="glass-card" style="padding: 16px;">
-                            <div class="field-label">ZOP Order ID</div>
-                            <div style="font-size: 16px; font-weight: 700; color: #ffffff;">{order_id}</div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-                with info2:
-                    st.markdown(
-                        f"""
-                        <div class="glass-card" style="padding: 16px;">
-                            <div class="field-label">ZOP ID</div>
-                            <div style="font-size: 16px; font-weight: 700; color: #ffffff;">{zop_id}</div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-                with info3:
-                    st.markdown(
-                        f"""
-                        <div class="glass-card" style="padding: 16px;">
-                            <div class="field-label">Seller Order ID</div>
-                            <div style="font-size: 16px; font-weight: 700; color: #ffffff;">{seller_order_id}</div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
+                info1.markdown(
+                    id_card("ZOP Order ID", order_id), unsafe_allow_html=True
+                )
+                info2.markdown(id_card("ZOP ID", zop_id), unsafe_allow_html=True)
+                info3.markdown(
+                    id_card("Seller Order ID", seller_order_id), unsafe_allow_html=True
+                )
 
-                # Calculations
+                # =================================================
+                # STATUS SUMMARY
+                # =================================================
+
                 status_series = (
                     results["order_status"]
                     .fillna("")
@@ -493,122 +767,60 @@ if mode == "Agent":
                 )
 
                 total_products = len(results)
+
                 delivered = status_series.eq("delivered").sum()
+
                 cancelled = status_series.eq("cancelled").sum()
+
                 in_transit = status_series.eq("in transit").sum()
-                rto = status_series.eq("rto").sum()
-                pending = (
-                    ~status_series.isin(["delivered", "cancelled", "in transit", "rto"])
-                ).sum()
 
-                # Status Metrics Display
-                st.markdown("### 📊 Summary Status (Bawaal Cheez Hai)")
-                col1, col2, col3, col4, col5, col6 = st.columns(6)
+                pending = status_series.eq("pending").sum()
 
-                with col1:
-                    st.markdown(
-                        f"""
-                        <div class="metric-container metric-total animate-fade-up">
-                            <div class="metric-label">Total items</div>
-                            <div class="metric-value">{total_products}</div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-                with col2:
-                    st.markdown(
-                        f"""
-                        <div class="metric-container metric-delivered animate-fade-up">
-                            <div class="metric-label">Delivered</div>
-                            <div class="metric-value" style="color: #22c55e;">{delivered}</div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-                with col3:
-                    st.markdown(
-                        f"""
-                        <div class="metric-container metric-cancelled animate-fade-up">
-                            <div class="metric-label">Cancelled</div>
-                            <div class="metric-value" style="color: #ef4444;">{cancelled}</div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-                with col4:
-                    st.markdown(
-                        f"""
-                        <div class="metric-container metric-transit animate-fade-up">
-                            <div class="metric-label">In Transit</div>
-                            <div class="metric-value" style="color: #3b82f6;">{in_transit}</div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-                with col5:
-                    st.markdown(
-                        f"""
-                        <div class="metric-container metric-pending animate-fade-up">
-                            <div class="metric-label">Pending</div>
-                            <div class="metric-value" style="color: #eab308;">{pending}</div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-                with col6:
-                    st.markdown(
-                        f"""
-                        <div class="metric-container metric-rto animate-fade-up">
-                            <div class="metric-label">RTO</div>
-                            <div class="metric-value" style="color: #f97316;">{rto}</div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-
-                # Table Details
-                st.markdown("### 🛍️ Product Breakdown (Saman Ki List)")
-
-                display_df = results[
-                    [
-                        "company_name",
-                        "title",
-                        "variant_id",
-                        "quantity",
-                        "order_status",
-                        "awb",
-                        "sr_channel_id",
-                        "final_price",
-                    ]
-                ].copy()
-
-                display_df.columns = [
-                    "Company",
-                    "Product",
-                    "Variant",
-                    "Qty",
-                    "Status",
-                    "AWB",
-                    "Channel ID",
-                    "Amount",
-                ]
-
-                # Apply status transformations
-                display_df["Status"] = display_df["Status"].apply(format_status_badge)
-
-                st.dataframe(
-                    display_df,
-                    use_container_width=True,
-                    hide_index=True,
-                    column_config={
-                        "Amount": st.column_config.NumberColumn(
-                            "Amount", format="₹%.2f"
-                        ),
-                    },
+                st.markdown(
+                    '<div class="oos-section-title">Status Summary</div>',
+                    unsafe_allow_html=True,
                 )
 
-                # Raw Identifiers
-                with st.expander("🔍 View All Order Identifiers (Pura Chittha)"):
+                col1, col2, col3, col4, col5 = st.columns(5)
+
+                col1.markdown(
+                    stat_card("stat-total", "Total", total_products),
+                    unsafe_allow_html=True,
+                )
+                col2.markdown(
+                    stat_card("stat-delivered", "Delivered", delivered),
+                    unsafe_allow_html=True,
+                )
+                col3.markdown(
+                    stat_card("stat-cancelled", "Cancelled", cancelled),
+                    unsafe_allow_html=True,
+                )
+                col4.markdown(
+                    stat_card("stat-transit", "In Transit", in_transit),
+                    unsafe_allow_html=True,
+                )
+                col5.markdown(
+                    stat_card("stat-pending", "Pending", pending),
+                    unsafe_allow_html=True,
+                )
+
+                # =================================================
+                # PRODUCT LEVEL DETAILS
+                # =================================================
+
+                st.markdown(
+                    '<div class="oos-section-title">Product / Company Details</div>',
+                    unsafe_allow_html=True,
+                )
+
+                render_product_table(results)
+
+                # =================================================
+                # RAW IDENTIFIERS
+                # =================================================
+
+                with st.expander("View all order identifiers"):
+
                     identifiers = results[
                         [
                             "zop_order_id",
@@ -631,222 +843,232 @@ if mode == "Agent":
 
 else:
 
-    # Admin Control Center Hero
     st.markdown(
         """
-        <div class="animate-fade-up" style="margin-top: 1.5rem; margin-bottom: 2rem;">
-            <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 3px; color: #ec4899;">Secure Control Console</span>
-            <h1 class="hero-title">OrderOS Control Center</h1>
-            <p class="hero-subtitle">Yeh Baburao ka style hai! Upload daily data dumps smoothly.</p>
+        <div class="oos-hero">
+            <div class="oos-eyebrow">OrderOS · Control Center</div>
+            <h1>Keep the data fresh.</h1>
+            <p class="oos-greeting-sub">
+                Upload today's complete order dump and keep OrderOS fresh.
+            </p>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    # -----------------------------------------------------
-    # PASSWORD GATE
-    # -----------------------------------------------------
+    # =====================================================
+    # LOGIN
+    # =====================================================
 
     if not st.session_state.admin_logged_in:
 
         st.markdown(
-            """
-            <div class="glass-card animate-fade-up" style="max-width: 500px; margin: 0 auto; padding: 40px; text-align: center;">
-                <div style="font-size: 3.5rem; margin-bottom: 12px;">🛡️</div>
-                <h3 style="margin-top:0;">Baburao's Lock Screen</h3>
-                <p style="color: #94a3b8; font-size: 14px; margin-bottom: 24px;">Enter verification credentials before we unleash the databases.</p>
-            </div>
-            """,
+            '<div class="glass-card" style="max-width:420px;">', unsafe_allow_html=True
+        )
+
+        st.markdown(
+            '<div class="oos-section-title" style="margin-top:0;">Admin Login</div>',
             unsafe_allow_html=True,
         )
 
-        pass_col1, pass_col2, pass_col3 = st.columns([1, 2, 1])
-        with pass_col2:
-            password = st.text_input(
-                "Admin Password",
-                type="password",
-                label_visibility="collapsed",
-                placeholder="Enter password... (Secret key de re baba!)",
-            )
+        password = st.text_input(
+            "Admin Password",
+            type="password",
+        )
 
-            st.markdown('<div style="margin-top: 10px;"></div>', unsafe_allow_html=True)
+        login_button = st.button(
+            "Login",
+            type="primary",
+        )
 
-            login_button = st.button(
-                "Verify & Grant Access (Sabaash Beta!)",
-                type="primary",
-                use_container_width=True,
-            )
+        if login_button:
 
-            if login_button:
-                if password == "admin123":
-                    st.session_state.admin_logged_in = True
-                    st.rerun()
-                else:
-                    st.markdown(
-                        """
-                        <div class="custom-error" style="margin-top: 15px; text-align: center;">
-                            ❌ <strong>Bilkul Chup!</strong> Incorrect password. Gunda banega re tu?
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
+            # TEMPORARY PASSWORD
+            # Will move to Streamlit Secrets later.
 
-    # -----------------------------------------------------
-    # ADMIN CONTROL CENTER ACTIVE
-    # -----------------------------------------------------
+            if password == "admin123":
+
+                st.session_state.admin_logged_in = True
+
+                st.rerun()
+
+            else:
+
+                st.error("Incorrect password.")
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # =====================================================
+    # ADMIN PANEL
+    # =====================================================
 
     else:
 
         top1, top2 = st.columns([5, 1])
 
         with top1:
-            st.markdown(
-                """
-                <div class="custom-success" style="padding: 10px 16px; display: inline-flex; align-items: center; gap: 8px;">
-                    🛡️ Session Authenticated (Full power access activated)
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+
+            st.success("Admin access granted.")
 
         with top2:
-            if st.button("Logout Console", use_container_width=True):
+
+            if st.button(
+                "Logout",
+                use_container_width=True,
+            ):
+
                 st.session_state.admin_logged_in = False
+
                 st.rerun()
 
-        st.markdown('<div style="margin-top: 20px;"></div>', unsafe_allow_html=True)
+        # =================================================
+        # DATABASE STATUS
+        # =================================================
 
-        # -------------------------------------------------
-        # DATABASE STATS
-        # -------------------------------------------------
-
-        st.markdown("### 📊 Database Statistics (Pura Ka Pura)")
+        st.markdown(
+            '<div class="oos-section-title">Database</div>', unsafe_allow_html=True
+        )
 
         record_count = get_order_count()
+
         last_upload = get_last_upload()
 
         c1, c2, c3 = st.columns(3)
 
-        with c1:
-            st.markdown(
-                f"""
-                <div class="metric-container animate-fade-up" style="border-bottom: 3px solid #8b5cf6;">
-                    <div class="metric-label">Stored Records Count</div>
-                    <div class="metric-value">{record_count:,}</div>
-                </div>
-                """,
+        c1.markdown(
+            stat_card("stat-total", "Current Records", f"{record_count:,}"),
+            unsafe_allow_html=True,
+        )
+
+        if last_upload:
+
+            uploaded_at = last_upload[0]
+            file_name = last_upload[1]
+            upload_records = last_upload[2]
+
+            c2.markdown(
+                stat_card(
+                    "stat-delivered", "Last Upload Records", f"{upload_records:,}"
+                ),
                 unsafe_allow_html=True,
             )
 
-        with c2:
-            last_rec = last_upload[2] if last_upload else 0
-            st.markdown(
-                f"""
-                <div class="metric-container animate-fade-up" style="border-bottom: 3px solid #ec4899;">
-                    <div class="metric-label">Last Upload Records</div>
-                    <div class="metric-value">{last_rec:,}</div>
-                </div>
-                """,
+            c3.markdown(
+                id_card("Last Upload", f"{uploaded_at} · {file_name}"),
                 unsafe_allow_html=True,
             )
 
-        with c3:
-            if last_upload:
-                uploaded_at = last_upload[0]
-                file_name = last_upload[1]
-                st.markdown(
-                    f"""
-                    <div class="glass-card animate-fade-up" style="padding: 16px; margin-bottom: 0; font-size: 13px; height: 100%;">
-                        <div style="font-weight: 700; color: #a78bfa; margin-bottom: 2px;">LAST REFRESH TIMESTAMP</div>
-                        <div style="color: #cbd5e1; margin-bottom: 8px;">{uploaded_at}</div>
-                        <div style="font-weight: 700; color: #a78bfa; margin-bottom: 2px;">FILE ORIGIN</div>
-                        <div style="color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{file_name}">{file_name}</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-            else:
-                st.markdown(
-                    """
-                    <div class="glass-card animate-fade-up" style="padding: 16px; margin-bottom:0; font-size: 13px; text-align: center; color: #94a3b8; display: flex; align-items: center; justify-content: center; height: 100%;">
-                        No existing system dump log detected. Database is empty.
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+        else:
 
-        st.markdown('<div style="margin-top: 24px;"></div>', unsafe_allow_html=True)
+            c2.markdown(
+                stat_card("stat-delivered", "Last Upload Records", "0"),
+                unsafe_allow_html=True,
+            )
 
-        # -------------------------------------------------
-        # DAILY DUMP IMPORT
-        # -------------------------------------------------
+            c3.markdown(id_card("Last Upload", "No upload yet"), unsafe_allow_html=True)
 
-        st.markdown("### 📤 Upload Today's Complete Dump")
+        # =================================================
+        # DAILY FULL DUMP UPLOAD
+        # =================================================
+
+        st.markdown(
+            '<div class="oos-section-title">Today\'s Full Order Dump</div>',
+            unsafe_allow_html=True,
+        )
 
         st.info(
-            "This structural file action entirely replaces the current dataset. "
-            "Sambhalke, badme mat bolna data ud gaya!"
+            "This upload replaces the existing dataset with today's complete order dump."
         )
 
         uploaded_file = st.file_uploader(
             "Choose Excel or CSV file",
-            type=["xlsx", "xls", "csv"],
-            label_visibility="collapsed",
+            type=[
+                "xlsx",
+                "xls",
+                "csv",
+            ],
         )
 
         if uploaded_file:
 
             try:
-                # Read structural data
+
+                # -----------------------------------------
+                # READ FILE
+                # -----------------------------------------
+
                 if uploaded_file.name.lower().endswith(".csv"):
+
                     df = pd.read_csv(uploaded_file)
+
                 else:
+
                     df = pd.read_excel(uploaded_file)
 
-                # Clean Whitespace headers
+                # -----------------------------------------
+                # CLEAN HEADERS
+                # -----------------------------------------
+
                 df.columns = df.columns.astype(str).str.strip()
 
-                st.markdown(
-                    f"""
-                    <div class="glass-card" style="margin-top: 16px;">
-                        <span style="color: #94a3b8; font-size: 13px;">DUMP METRICS</span>
-                        <h4 style="margin: 4px 0 0 0;">Total Rows Found: {len(df):,}</h4>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+                # -----------------------------------------
+                # NORMALIZE INTEGER COLUMNS
+                # (fixes "1.0" being sent to an integer DB column,
+                # which happens when a numeric column has a blank/NaN
+                # cell and pandas silently upcasts it to float64)
+                #
+                # NOTE: only "quantity" is touched here. Columns like
+                # variant_id / product_id / company_id / sr_channel_id
+                # are NOT coerced because they can be alphanumeric
+                # (e.g. "V001") — forcing them to numeric would corrupt
+                # those values instead of fixing anything.
+                # -----------------------------------------
 
-                # Check and validate required columns
+                if "quantity" in df.columns:
+
+                    numeric_qty = pd.to_numeric(df["quantity"], errors="coerce").fillna(
+                        0
+                    )
+
+                    df["quantity"] = numeric_qty.astype("int64")
+
+                st.write(f"**Rows detected:** {len(df):,}")
+
+                # -----------------------------------------
+                # COLUMN VALIDATION
+                # -----------------------------------------
+
                 missing_columns = [
                     column for column in REQUIRED_COLUMNS if column not in df.columns
                 ]
 
                 if missing_columns:
-                    st.markdown(
-                        """
-                        <div class="custom-error">
-                            <strong>❌ Operational Halt!</strong> Required columns are missing. Yeh kya bawasir bana diye ho?
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-                    st.write("Missing structural variables from source:")
+
+                    st.error("❌ Required columns are missing.")
+
+                    st.write("Missing columns:")
+
                     for column in missing_columns:
-                        st.markdown(f"• `{column}`")
+
+                        st.write(f"• `{column}`")
+
                     st.stop()
 
-                # Success Alert
+                # -----------------------------------------
+                # VALID FILE
+                # -----------------------------------------
+
+                st.success("✅ File structure is valid.")
+
+                # -----------------------------------------
+                # PREVIEW
+                # -----------------------------------------
+
                 st.markdown(
-                    """
-                    <div class="custom-success">
-                        ✅ <strong>Bawaal Cheez Hai!</strong> File structure is perfectly valid. Look at the preview below.
-                    </div>
-                    """,
+                    '<div class="oos-section-title">File Preview</div>',
                     unsafe_allow_html=True,
                 )
 
-                # Preview Data
-                st.markdown("#### Schema Preview (Ek Jhalak)")
                 st.dataframe(
                     df.head(10),
                     use_container_width=True,
@@ -854,74 +1076,61 @@ else:
                 )
 
                 st.warning(
-                    "Attn: Uploading this file will completely replace the current database. "
-                    "Are you sure you want to trigger this action? (Risk hai toh ishq hai!)"
+                    "Uploading this file will replace the current database with "
+                    "this complete daily dump."
                 )
 
-                # Active confirmation checkbox
+                # -----------------------------------------
+                # CONFIRM UPLOAD
+                # -----------------------------------------
+
                 confirm = st.checkbox("I confirm this is today's complete order dump.")
 
                 if confirm:
-                    st.markdown(
-                        '<div style="margin-top: 10px;"></div>', unsafe_allow_html=True
-                    )
+
                     if st.button(
-                        "💾 Replace Database (Karde Bhai!)",
+                        "💾  Replace Database",
                         type="primary",
                         use_container_width=True,
                     ):
-                        with st.spinner(
-                            "Processing transaction data... Sabra karo bhidu!"
-                        ):
+
+                        with st.spinner("Replacing database..."):
+
                             replace_orders(df, uploaded_file.name)
 
-                        st.markdown(
-                            f"""
-                            <div class="custom-success">
-                                🚀 Success: Uploaded {len(df):,} records successfully! (Paisa hi paisa!)
-                            </div>
-                            """,
-                            unsafe_allow_html=True,
-                        )
+                        st.success(f"Successfully uploaded {len(df):,} records.")
+
                         st.rerun()
 
             except Exception as e:
-                st.markdown(
-                    """
-                    <div class="custom-error">
-                        ❌ Parser processing failure on file.
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+
+                st.error("❌ Unable to process file.")
+
                 st.exception(e)
 
-        # -------------------------------------------------
-        # ARCHIVED HISTORY LOGS
-        # -------------------------------------------------
+        # =================================================
+        # UPLOAD HISTORY
+        # =================================================
 
-        st.markdown('<div style="margin-top: 24px;"></div>', unsafe_allow_html=True)
-        st.markdown("### 📋 System Archive Log")
+        st.markdown(
+            '<div class="oos-section-title">Latest Upload</div>', unsafe_allow_html=True
+        )
 
         latest_upload = get_last_upload()
 
         if latest_upload:
+
             st.markdown(
                 f"""
                 <div class="glass-card">
-                    <div style="font-size: 13px; margin-bottom: 8px;"><strong>Record creation:</strong> {latest_upload[0]}</div>
-                    <div style="font-size: 13px; margin-bottom: 8px;"><strong>Import filename:</strong> {latest_upload[1]}</div>
-                    <div style="font-size: 13px;"><strong>Indexed structures:</strong> {latest_upload[2]:,}</div>
+                    <div><strong>Date:</strong> {esc(latest_upload[0])}</div>
+                    <div style="margin-top:0.3rem;"><strong>File:</strong> {esc(latest_upload[1])}</div>
+                    <div style="margin-top:0.3rem;"><strong>Records:</strong> {latest_upload[2]:,}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
+
         else:
-            st.markdown(
-                """
-                <div class="glass-card" style="text-align: center; color: #94a3b8;">
-                    No recorded updates to system state history.
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+
+            st.info("No order dump has been uploaded yet.")
