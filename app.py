@@ -1,4 +1,5 @@
 import html
+import requests
 from datetime import datetime
 
 import pandas as pd
@@ -138,7 +139,7 @@ st.markdown(
         color: var(--text-1);
     }
 
-    /* ---- background: deep space + drifting aurora blobs ---- */
+    /* ---- background ---- */
     .stApp {
         position: relative;
         overflow-x: hidden;
@@ -212,7 +213,7 @@ st.markdown(
     h1, h2, h3 { color: var(--text-1); letter-spacing: -0.02em; }
     p, span, label, div { color: inherit; }
 
-    /* ---- widget labels: small muted caption, consistent everywhere ---- */
+    /* ---- widget labels ---- */
     [data-testid="stWidgetLabel"] p {
         font-size: 0.72rem !important;
         font-weight: 700 !important;
@@ -246,12 +247,11 @@ st.markdown(
     }
     div[data-testid="stTextInput"] input::placeholder { color: var(--text-3); opacity: 1; }
 
-    /* ---- native checkbox / radio accent (fixes default red dot) ---- */
     input[type="checkbox"], input[type="radio"] {
         accent-color: var(--accent-2) !important;
     }
 
-    /* ---- number input (refund quantity / amount) ---- */
+    /* ---- number input ---- */
     div[data-testid="stNumberInput"] div[data-baseweb="input"] {
         background: var(--glass-strong) !important;
         border: 1px solid var(--line) !important;
@@ -271,7 +271,7 @@ st.markdown(
         color: var(--text-1) !important;
     }
 
-    /* ---- selectbox (refund reason dropdown) ---- */
+    /* ---- selectbox ---- */
     div[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
         background: var(--glass-strong) !important;
         border: 1px solid var(--line) !important;
@@ -292,7 +292,6 @@ st.markdown(
         background: var(--glass-strong) !important;
     }
 
-    /* ---- checkbox label text ---- */
     div[data-testid="stCheckbox"] label p {
         color: var(--text-1) !important;
         font-weight: 500 !important;
@@ -328,7 +327,7 @@ st.markdown(
         transform: translateY(-2px) scale(1.01);
     }
 
-    /* ---- radio (mode switch) ---- */
+    /* ---- radio ---- */
     div[role="radiogroup"] {
         gap: 0.35rem;
     }
@@ -344,7 +343,6 @@ st.markdown(
         transform: translateY(-1px);
     }
 
-    /* ---- dataframe ---- */
     div[data-testid="stDataFrame"] {
         border-radius: var(--radius-md);
         overflow: hidden;
@@ -352,7 +350,6 @@ st.markdown(
         box-shadow: var(--shadow);
     }
 
-    /* ---- expander ---- */
     details {
         background: var(--glass);
         border: 1px solid var(--line);
@@ -360,7 +357,6 @@ st.markdown(
         backdrop-filter: blur(14px);
     }
 
-    /* ---- dividers less heavy ---- */
     hr { border-color: var(--line) !important; margin: 1.6rem 0 !important; }
 
     /* =====================================================
@@ -736,11 +732,6 @@ def prepare_refund_payload(refund_rows):
     """
     Convert selected refund rows into the clean payload structure that
     the Google Sheet / refund automation will eventually consume.
-
-    Input: list of dicts with keys
-        sr_channel_id, zop_order_id, variant_id, quantity, amount, refund_reason
-    Output: list of dicts with keys
-        channel_id, order_id, variant_id, quantity, amount, refund_reason
     """
     payload = []
 
@@ -750,13 +741,38 @@ def prepare_refund_payload(refund_rows):
                 "channel_id": row.get("sr_channel_id"),
                 "order_id": row.get("zop_order_id"),
                 "variant_id": row.get("variant_id"),
-                "quantity": row.get("quantity"),
-                "amount": row.get("amount"),
+                "quantity": int(row.get("quantity")),
+                "amount": float(row.get("amount")),
                 "refund_reason": row.get("refund_reason"),
             }
         )
 
     return payload
+
+
+def append_refunds_to_gsheet(refund_payload):
+    """
+    Sends the payload directly to the Google Apps Script Web App Endpoint.
+    This eliminates the need for GCP Service Accounts completely.
+    """
+    try:
+        webhook_url = st.secrets["gsheet_webhook_url"]
+
+        # Send HTTP POST to the Google Apps Script Web App URL
+        response = requests.post(webhook_url, json=refund_payload, timeout=15)
+
+        if response.status_code == 200:
+            res_json = response.json()
+            if res_json.get("status") == "success":
+                return True
+            else:
+                raise RuntimeError(
+                    res_json.get("message", "GAS webapp failed to write to sheet")
+                )
+        else:
+            raise RuntimeError(f"HTTP Server Error: {response.status_code}")
+    except Exception as e:
+        raise RuntimeError(f"Apps Script Connection Failed: {str(e)}")
 
 
 # =========================================================
@@ -842,17 +858,11 @@ if mode == "Agent":
 
             else:
 
-                # a fresh search means any open refund confirmation
-                # from a previous order should not carry over
                 st.session_state.last_search_results = results
                 st.session_state.show_refund_confirm = False
 
     # -----------------------------------------------------
     # RESULTS DISPLAY
-    # (reads from session_state, not the button click, so that
-    # checkboxes / quantity / amount / reason widgets inside the
-    # refund workflow below keep the results visible across their
-    # own reruns)
     # -----------------------------------------------------
 
     results = st.session_state.last_search_results
@@ -985,8 +995,6 @@ if mode == "Agent":
             unsafe_allow_html=True,
         )
 
-        # Build one entry per product/company row, each with a
-        # unique key so multiple rows never collide.
         refund_products = []
 
         for row_position, row in results.reset_index(drop=True).iterrows():
@@ -1138,15 +1146,18 @@ if mode == "Agent":
 
                 refund_payload = prepare_refund_payload(refund_rows)
 
-                # NOTE: this payload is prepared only, for now.
-                # The actual Google Sheet / refund automation
-                # connection will be wired up separately.
+                # Connect up and append directly to GSheet queue via Web App URL
+                try:
+                    with st.spinner("Locking refund details into the GSheet queue..."):
+                        append_refunds_to_gsheet(refund_payload)
 
-                st.session_state.show_refund_confirm = False
+                    st.session_state.show_refund_confirm = False
 
-                st.success(
-                    "🎉 Lock Ho Gaya Bhidu! 7 Crore Jeet Gaye — Refund Submitted Successfully!"
-                )
+                    st.success(
+                        "🎉 Lock Ho Gaya Bhidu! 7 Crore Jeet Gaye — Refund Submitted & GSheet Queue Updated Successfully!"
+                    )
+                except Exception as e:
+                    st.error(f"❌ Arre yaar, kuch jhamela ho gaya! {str(e)}")
 
 
 # =========================================================
@@ -1336,15 +1347,6 @@ else:
 
                 # -----------------------------------------
                 # NORMALIZE INTEGER COLUMNS
-                # (fixes "1.0" being sent to an integer DB column,
-                # which happens when a numeric column has a blank/NaN
-                # cell and pandas silently upcasts it to float64)
-                #
-                # NOTE: only "quantity" is touched here. Columns like
-                # variant_id / product_id / company_id / sr_channel_id
-                # are NOT coerced because they can be alphanumeric
-                # (e.g. "V001") — forcing them to numeric would corrupt
-                # those values instead of fixing anything.
                 # -----------------------------------------
 
                 if "quantity" in df.columns:
