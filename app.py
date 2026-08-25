@@ -61,19 +61,19 @@ REQUIRED_COLUMNS = [
 REFUND_REASON_PLACEHOLDER = "— Select Reason —"
 
 REFUND_REASONS = [
-    "Defective Product",
+    "Colour issue",
     "Damaged Product",
-    "Wrong Item Delivered",
-    "Size Issue",
-    "Order Cancelled by Customer",
     "DNR Order",
+    "Defective product",
     "Delay in Delivery",
-    "Order Cancelled by Seller",
-    "RTO",
+    "Low quality Product",
     "Missing Item",
+    "Order Cancelled by Seller",
+    "Order Cancelled by Customer",
     "Quanity Mismatch",
-    "Low Quality Product",
-    "Colour Issue",
+    "RTO",
+    "Size Issue",
+    "Wrong Product Delivered",
 ]
 
 REFUND_REASON_OPTIONS = [REFUND_REASON_PLACEHOLDER] + REFUND_REASONS
