@@ -61,16 +61,30 @@ REFUND_REASON_PLACEHOLDER = "— Select Reason —"
 
 REFUND_REASONS = [
     "Defective Product",
-    "Damaged in Transit",
+    "Damaged Product",
     "Wrong Item Delivered",
     "Size Issue",
     "Order Cancelled by Customer",
-    "DNR",
+    "DNR Order",
     "Delay in Delivery",
-    "Order Cancelled by Seller",
+    "Order Cancelled by seller",
 ]
 
 REFUND_REASON_OPTIONS = [REFUND_REASON_PLACEHOLDER] + REFUND_REASONS
+
+
+# =========================================================
+# NEW: SPECIAL COUPON OPTIONS
+# =========================================================
+
+COUPON_TYPE_PLACEHOLDER = "— Select Coupon —"
+
+COUPON_TYPES = [
+    "SORRY 1",
+    "SORRY 2",
+]
+
+COUPON_TYPE_OPTIONS = [COUPON_TYPE_PLACEHOLDER] + COUPON_TYPES
 
 
 # =========================================================
@@ -91,6 +105,10 @@ if "last_search_results" not in st.session_state:
 
 if "show_refund_confirm" not in st.session_state:
     st.session_state.show_refund_confirm = False
+
+# NEW: Special Coupon panel toggle — independent of the refund flow.
+if "show_coupon_form" not in st.session_state:
+    st.session_state.show_coupon_form = False
 
 
 # =========================================================
@@ -787,6 +805,53 @@ def append_refunds_to_gsheet(refund_payload):
         raise RuntimeError(f"Apps Script Connection Failed: {str(e)}")
 
 
+def prepare_coupon_payload(customer_contact, coupon_type, agent_email, order_id=None):
+    """
+    NEW: Build the Special Coupon payload. Completely separate from the
+    refund payload/shape — this is never mixed into refund rows and never
+    touches the Filtered Data sheet.
+    """
+    payload = {
+        "type": "special_coupon",
+        "customer_contact": customer_contact,
+        "coupon_type": coupon_type,
+        "agent_email": agent_email,
+        "submitted_at": datetime.utcnow().isoformat(),
+    }
+
+    # Only attach order context if we actually have it — never invented.
+    if order_id not in (None, ""):
+        payload["order_id"] = order_id
+
+    return payload
+
+
+def submit_special_coupon(coupon_payload):
+    """
+    NEW: Sends the Special Coupon payload to the same Apps Script Web App
+    used for refunds. The Apps Script routes it to the separate
+    "Special Coupons" sheet based on payload["type"], so refund rows and
+    refund automation are never touched by this call.
+    """
+    try:
+        webhook_url = st.secrets["gsheet_webhook_url"]
+
+        response = requests.post(webhook_url, json=coupon_payload, timeout=15)
+
+        if response.status_code == 200:
+            res_json = response.json()
+            if res_json.get("status") == "success":
+                return True
+            else:
+                raise RuntimeError(
+                    res_json.get("message", "GAS webapp failed to write coupon")
+                )
+        else:
+            raise RuntimeError(f"HTTP Server Error: {response.status_code}")
+    except Exception as e:
+        raise RuntimeError(f"Apps Script Connection Failed: {str(e)}")
+
+
 def render_agent_login():
     """
     NEW: Simple session-based Agent Login screen.
@@ -949,6 +1014,110 @@ if mode == "Agent":
 
                     st.session_state.last_search_results = results
                     st.session_state.show_refund_confirm = False
+
+        # -----------------------------------------------------
+        # NEW: SPECIAL COUPON
+        # A completely separate action from Direct Refund. Does not
+        # require an order search, but will pick up order context
+        # automatically if one is already available in this session.
+        # -----------------------------------------------------
+
+        st.markdown(
+            '<div class="oos-section-title">🎟️ Special Coupon </div>',
+            unsafe_allow_html=True,
+        )
+
+        coupon_toggle_clicked = st.button(
+            "🎟️ Special Coupon",
+            use_container_width=True,
+            key="open_special_coupon_btn",
+        )
+
+        if coupon_toggle_clicked:
+            st.session_state.show_coupon_form = not st.session_state.show_coupon_form
+
+        if st.session_state.show_coupon_form:
+
+            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+
+            st.markdown(
+                '<div style="font-weight:700; font-size:1.05rem; margin-bottom:0.7rem;">Special Coupon</div>',
+                unsafe_allow_html=True,
+            )
+
+            # Pick up order context automatically if a search already happened —
+            # never required, never blocks submission if absent.
+            existing_results = st.session_state.last_search_results
+            context_order_id = None
+            if existing_results is not None and not existing_results.empty:
+                context_order_id = existing_results.iloc[0]["zop_order_id"]
+                st.caption(f"Linked to order: {context_order_id}")
+
+            customer_contact_value = st.text_input(
+                "Customer Contact",
+                placeholder="Phone number or email",
+                key="coupon_customer_contact",
+            )
+
+            coupon_type_value = st.selectbox(
+                "Coupon Type",
+                COUPON_TYPE_OPTIONS,
+                key="coupon_type_select",
+            )
+
+            coupon_submit_clicked = st.button(
+                "Submit Special Coupon",
+                type="primary",
+                use_container_width=True,
+                key="submit_special_coupon_btn",
+            )
+
+            if coupon_submit_clicked:
+
+                # Validation — mirrors the same guard used for refunds.
+                if not st.session_state.agent_email:
+
+                    st.error(
+                        "You must be logged in as an agent to submit a special coupon."
+                    )
+
+                elif not customer_contact_value.strip():
+
+                    st.warning("Please enter the customer's contact detail.")
+
+                elif coupon_type_value == COUPON_TYPE_PLACEHOLDER:
+
+                    st.warning("Please select a coupon type.")
+
+                else:
+
+                    coupon_payload = prepare_coupon_payload(
+                        customer_contact=customer_contact_value.strip(),
+                        coupon_type=coupon_type_value,
+                        agent_email=st.session_state.agent_email,
+                        order_id=context_order_id,
+                    )
+
+                    try:
+                        with st.spinner("Submitting special coupon..."):
+                            submit_special_coupon(coupon_payload)
+
+                        # Reset the form fields for the next submission.
+                        st.session_state.show_coupon_form = False
+                        for form_key in (
+                            "coupon_customer_contact",
+                            "coupon_type_select",
+                        ):
+                            if form_key in st.session_state:
+                                del st.session_state[form_key]
+
+                        st.success("Special coupon submitted successfully ✅")
+                        st.rerun()
+
+                    except Exception as e:
+                        st.error(f"❌ Arre yaar, kuchh to gadbad hai daya! {str(e)}")
+
+            st.markdown("</div>", unsafe_allow_html=True)
 
         # -----------------------------------------------------
         # RESULTS DISPLAY
