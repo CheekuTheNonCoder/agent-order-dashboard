@@ -656,22 +656,22 @@ def get_greeting():
     if 5 <= hour < 12:
         return (
             "Pratahkal! ☀️",
-            "Fresh start. Bilkul ricks nahi lene ka re baba! Let's find what you need.",
+            "Fresh start. have a tea and Let's find what you need.",
         )
     elif 12 <= hour < 17:
         return (
             "Namaskar, dophar ho gayi! 🌤️",
-            "Abhi hum zinda hain! What order are we searching for?",
+            "What order are we searching for?",
         )
     elif 17 <= hour < 21:
         return (
             "Good evening, mitron. 🌙",
-            "Kya chal raha hai? Fogg chal raha hai? Let's make this search easy.",
+            "Kya chal raha hai? Let's make this search easy.",
         )
     else:
         return (
             "Are you still awake? 🦉",
-            "Ye Baburao ka style hai! Sleeping schedule is crying in the corner.",
+            "Sleeping schedule is crying in the corner.",
         )
 
 
