@@ -61,13 +61,13 @@ REFUND_REASON_PLACEHOLDER = "— Select Reason —"
 
 REFUND_REASONS = [
     "Defective Product",
-    "Damaged Product",
+    "Damaged in Transit",
     "Wrong Item Delivered",
     "Size Issue",
     "Order Cancelled by Customer",
-    "DNR Order",
-    "Delay in Delivery",
-    "Order Cancelled by seller",
+    "Duplicate Order",
+    "Late Delivery",
+    "Other",
 ]
 
 REFUND_REASON_OPTIONS = [REFUND_REASON_PLACEHOLDER] + REFUND_REASONS
@@ -870,37 +870,33 @@ def render_agent_login():
         unsafe_allow_html=True,
     )
 
-    st.markdown(
-        '<div class="glass-card" style="max-width:420px;">', unsafe_allow_html=True
-    )
+    with st.container(border=True):
 
-    email_input = st.text_input(
-        "Agent Email",
-        placeholder="you@company.com",
-        key="agent_email_input",
-    )
+        email_input = st.text_input(
+            "Agent Email",
+            placeholder="you@company.com",
+            key="agent_email_input",
+        )
 
-    login_clicked = st.button(
-        "Login",
-        type="primary",
-        use_container_width=True,
-        key="agent_login_btn",
-    )
+        login_clicked = st.button(
+            "Login",
+            type="primary",
+            use_container_width=True,
+            key="agent_login_btn",
+        )
 
-    if login_clicked:
+        if login_clicked:
 
-        cleaned_email = email_input.strip()
+            cleaned_email = email_input.strip()
 
-        if not cleaned_email or "@" not in cleaned_email:
+            if not cleaned_email or "@" not in cleaned_email:
 
-            st.error("Please enter a valid company email to continue.")
+                st.error("Please enter a valid company email to continue.")
 
-        else:
+            else:
 
-            st.session_state.agent_email = cleaned_email
-            st.rerun()
-
-    st.markdown("</div>", unsafe_allow_html=True)
+                st.session_state.agent_email = cleaned_email
+                st.rerun()
 
 
 # =========================================================
@@ -1014,110 +1010,6 @@ if mode == "Agent":
 
                     st.session_state.last_search_results = results
                     st.session_state.show_refund_confirm = False
-
-        # -----------------------------------------------------
-        # NEW: SPECIAL COUPON
-        # A completely separate action from Direct Refund. Does not
-        # require an order search, but will pick up order context
-        # automatically if one is already available in this session.
-        # -----------------------------------------------------
-
-        st.markdown(
-            '<div class="oos-section-title">🎟️ Special Coupon </div>',
-            unsafe_allow_html=True,
-        )
-
-        coupon_toggle_clicked = st.button(
-            "🎟️ Special Coupon",
-            use_container_width=True,
-            key="open_special_coupon_btn",
-        )
-
-        if coupon_toggle_clicked:
-            st.session_state.show_coupon_form = not st.session_state.show_coupon_form
-
-        if st.session_state.show_coupon_form:
-
-            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-
-            st.markdown(
-                '<div style="font-weight:700; font-size:1.05rem; margin-bottom:0.7rem;">Special Coupon</div>',
-                unsafe_allow_html=True,
-            )
-
-            # Pick up order context automatically if a search already happened —
-            # never required, never blocks submission if absent.
-            existing_results = st.session_state.last_search_results
-            context_order_id = None
-            if existing_results is not None and not existing_results.empty:
-                context_order_id = existing_results.iloc[0]["zop_order_id"]
-                st.caption(f"Linked to order: {context_order_id}")
-
-            customer_contact_value = st.text_input(
-                "Customer Contact",
-                placeholder="Phone number or email",
-                key="coupon_customer_contact",
-            )
-
-            coupon_type_value = st.selectbox(
-                "Coupon Type",
-                COUPON_TYPE_OPTIONS,
-                key="coupon_type_select",
-            )
-
-            coupon_submit_clicked = st.button(
-                "Submit Special Coupon",
-                type="primary",
-                use_container_width=True,
-                key="submit_special_coupon_btn",
-            )
-
-            if coupon_submit_clicked:
-
-                # Validation — mirrors the same guard used for refunds.
-                if not st.session_state.agent_email:
-
-                    st.error(
-                        "You must be logged in as an agent to submit a special coupon."
-                    )
-
-                elif not customer_contact_value.strip():
-
-                    st.warning("Please enter the customer's contact detail.")
-
-                elif coupon_type_value == COUPON_TYPE_PLACEHOLDER:
-
-                    st.warning("Please select a coupon type.")
-
-                else:
-
-                    coupon_payload = prepare_coupon_payload(
-                        customer_contact=customer_contact_value.strip(),
-                        coupon_type=coupon_type_value,
-                        agent_email=st.session_state.agent_email,
-                        order_id=context_order_id,
-                    )
-
-                    try:
-                        with st.spinner("Submitting special coupon..."):
-                            submit_special_coupon(coupon_payload)
-
-                        # Reset the form fields for the next submission.
-                        st.session_state.show_coupon_form = False
-                        for form_key in (
-                            "coupon_customer_contact",
-                            "coupon_type_select",
-                        ):
-                            if form_key in st.session_state:
-                                del st.session_state[form_key]
-
-                        st.success("Special coupon submitted successfully ✅")
-                        st.rerun()
-
-                    except Exception as e:
-                        st.error(f"❌ Arre yaar, kuchh to gadbad hai daya! {str(e)}")
-
-            st.markdown("</div>", unsafe_allow_html=True)
 
         # -----------------------------------------------------
         # RESULTS DISPLAY
@@ -1304,6 +1196,108 @@ if mode == "Agent":
             if refund_clicked:
 
                 st.session_state.show_refund_confirm = True
+
+            # -------------------------------------------------
+            # NEW: SPECIAL COUPON
+            # Placed directly below the Refund button, as a separate
+            # action. Uses a real Streamlit bordered container (not a
+            # raw HTML div) so nothing renders as an empty box.
+            # -------------------------------------------------
+
+            st.markdown(
+                '<div class="oos-section-title">🎟️ Special Coupon </div>',
+                unsafe_allow_html=True,
+            )
+
+            coupon_toggle_clicked = st.button(
+                "🎟️ Special Coupon",
+                use_container_width=True,
+                key="open_special_coupon_btn",
+            )
+
+            if coupon_toggle_clicked:
+                st.session_state.show_coupon_form = (
+                    not st.session_state.show_coupon_form
+                )
+
+            if st.session_state.show_coupon_form:
+
+                with st.container(border=True):
+
+                    st.markdown(
+                        '<div style="font-weight:700; font-size:1.05rem; margin-bottom:0.7rem;">Special Coupon</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                    # Order context comes from the order already open on this
+                    # page — never required, never blocks submission if absent.
+                    st.caption(f"Linked to order: {order_id}")
+
+                    customer_contact_value = st.text_input(
+                        "Customer Contact",
+                        placeholder="Phone number or email",
+                        key="coupon_customer_contact",
+                    )
+
+                    coupon_type_value = st.selectbox(
+                        "Coupon Type",
+                        COUPON_TYPE_OPTIONS,
+                        key="coupon_type_select",
+                    )
+
+                    coupon_submit_clicked = st.button(
+                        "Submit Special Coupon",
+                        type="primary",
+                        use_container_width=True,
+                        key="submit_special_coupon_btn",
+                    )
+
+                    if coupon_submit_clicked:
+
+                        # Validation — mirrors the same guard used for refunds.
+                        if not st.session_state.agent_email:
+
+                            st.error(
+                                "You must be logged in as an agent to submit a special coupon."
+                            )
+
+                        elif not customer_contact_value.strip():
+
+                            st.warning("Please enter the customer's contact detail.")
+
+                        elif coupon_type_value == COUPON_TYPE_PLACEHOLDER:
+
+                            st.warning("Please select a coupon type.")
+
+                        else:
+
+                            coupon_payload = prepare_coupon_payload(
+                                customer_contact=customer_contact_value.strip(),
+                                coupon_type=coupon_type_value,
+                                agent_email=st.session_state.agent_email,
+                                order_id=order_id,
+                            )
+
+                            try:
+                                with st.spinner("Submitting special coupon..."):
+                                    submit_special_coupon(coupon_payload)
+
+                                # Reset the form fields for the next submission.
+                                st.session_state.show_coupon_form = False
+                                for form_key in (
+                                    "coupon_customer_contact",
+                                    "coupon_type_select",
+                                ):
+                                    if form_key in st.session_state:
+                                        del st.session_state[form_key]
+
+                                st.success("Special coupon submitted successfully ✅")
+                                st.rerun()
+
+                            except Exception as e:
+                                st.error(
+                                    f"❌ Arre yaar, kuchh to gadbad hai daya! {str(e)}"
+                                )
 
             # -------------------------------------------------
             # REFUND CONFIRMATION
