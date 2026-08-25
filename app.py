@@ -65,9 +65,9 @@ REFUND_REASONS = [
     "Wrong Item Delivered",
     "Size Issue",
     "Order Cancelled by Customer",
-    "Duplicate Order",
-    "Late Delivery",
-    "Other",
+    "DNR",
+    "Delay in Delivery",
+    "Order Cancelled by Seller",
 ]
 
 REFUND_REASON_OPTIONS = [REFUND_REASON_PLACEHOLDER] + REFUND_REASONS
