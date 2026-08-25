@@ -829,7 +829,7 @@ if mode == "Agent":
     )
 
     search_button = st.button(
-        "🔍 Search (Bhidu, jaldi kar!)",
+        "🔍 Search ",
         type="primary",
         use_container_width=True,
     )
@@ -889,7 +889,7 @@ if mode == "Agent":
                     <span class="id">{esc(order_id)}</span>
                 </div>
                 <div style="margin-top:0.4rem; font-size:0.85rem; font-weight:600; color:var(--accent-2);">
-                    PAISA HI PAISA HOGA! 💸
+                     💸
                 </div>
             </div>
             """,
@@ -901,7 +901,7 @@ if mode == "Agent":
         # =================================================
 
         st.markdown(
-            '<div class="oos-section-title">📋 Identifiers (Kanoon Ke Haath)</div>',
+            '<div class="oos-section-title">📋 Identifiers </div>',
             unsafe_allow_html=True,
         )
 
@@ -932,7 +932,7 @@ if mode == "Agent":
         pending = status_series.eq("pending").sum()
 
         st.markdown(
-            '<div class="oos-section-title">📊 Status Summary (Bawaal Cheez Hai)</div>',
+            '<div class="oos-section-title">📊 Status Summary </div>',
             unsafe_allow_html=True,
         )
 
@@ -959,7 +959,7 @@ if mode == "Agent":
         # =================================================
 
         st.markdown(
-            '<div class="oos-section-title">🛍️ Product Breakdown (Saman Ki List)</div>',
+            '<div class="oos-section-title">🛍️ Product Breakdown </div>',
             unsafe_allow_html=True,
         )
 
@@ -991,7 +991,7 @@ if mode == "Agent":
         # =================================================
 
         st.markdown(
-            '<div class="oos-section-title">💸 Refund Zone (Paisa Wapas Karo Ji)</div>',
+            '<div class="oos-section-title">💸 Refund Zone </div>',
             unsafe_allow_html=True,
         )
 
@@ -1051,7 +1051,7 @@ if mode == "Agent":
         if st.session_state.show_refund_confirm and selected_products:
 
             st.markdown(
-                '<div class="oos-section-title">🎯 Refund Confirmation (Computer Ji, Dhyaan Se!)</div>',
+                '<div class="oos-section-title">🎯 Refund Confirmation (Dhyaan Se!)</div>',
                 unsafe_allow_html=True,
             )
 
@@ -1154,10 +1154,10 @@ if mode == "Agent":
                     st.session_state.show_refund_confirm = False
 
                     st.success(
-                        "🎉 Lock Ho Gaya Bhidu! 7 Crore Jeet Gaye — Refund Submitted & GSheet Queue Updated Successfully!"
+                        "🎉 7 Croreeee — Refund Submitted & GSheet Queue Updated Successfully!"
                     )
                 except Exception as e:
-                    st.error(f"❌ Arre yaar, kuch jhamela ho gaya! {str(e)}")
+                    st.error(f"❌ Arre yaar, kuchh to gadbad hai daya! {str(e)}")
 
 
 # =========================================================
