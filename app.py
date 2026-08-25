@@ -889,7 +889,7 @@ if mode == "Agent":
                     <span class="id">{esc(order_id)}</span>
                 </div>
                 <div style="margin-top:0.4rem; font-size:0.85rem; font-weight:600; color:var(--accent-2);">
-                     💸
+                     Scroll Down for Refund
                 </div>
             </div>
             """,
