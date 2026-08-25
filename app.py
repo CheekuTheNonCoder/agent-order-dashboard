@@ -68,7 +68,7 @@ REFUND_REASONS = [
     "Order Cancelled by Customer",
     "DNR Order",
     "Delay in Delivery",
-    "Order Cancelled by Customer",
+    "Order Cancelled by Seller",
 ]
 
 REFUND_REASON_OPTIONS = [REFUND_REASON_PLACEHOLDER] + REFUND_REASONS
