@@ -1,6 +1,7 @@
 import html
 import requests
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import streamlit as st
@@ -61,13 +62,13 @@ REFUND_REASON_PLACEHOLDER = "— Select Reason —"
 
 REFUND_REASONS = [
     "Defective Product",
-    "Damaged in Transit",
+    "Damaged Product",
     "Wrong Item Delivered",
     "Size Issue",
     "Order Cancelled by Customer",
-    "Duplicate Order",
-    "Late Delivery",
-    "Other",
+    "DNR Order",
+    "Delay in Delivery",
+    "Order Cancelled by Customer",
 ]
 
 REFUND_REASON_OPTIONS = [REFUND_REASON_PLACEHOLDER] + REFUND_REASONS
@@ -638,8 +639,14 @@ st.markdown(
 
 
 def get_greeting():
-    """Time-aware, meme-flavoured greeting. Returns (headline, subtitle)."""
-    hour = datetime.now().hour
+    """Time-aware, meme-flavoured greeting. Returns (headline, subtitle).
+
+    IMPORTANT: uses India (Asia/Kolkata) time explicitly, not the server's
+    local clock. Most hosts (Streamlit Cloud etc.) run on UTC, so
+    datetime.now().hour was reading UTC hour, not IST — which is why the
+    greeting was stuck on "Pratahkal!" regardless of the actual time in India.
+    """
+    hour = datetime.now(ZoneInfo("Asia/Kolkata")).hour
 
     if 5 <= hour < 12:
         return (
