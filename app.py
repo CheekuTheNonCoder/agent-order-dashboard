@@ -69,6 +69,7 @@ REFUND_REASONS = [
     "DNR Order",
     "Delay in Delivery",
     "Order Cancelled by Seller",
+    "RTO" "Missing Item" "Quanity Mismatch" "Low Quality Product" "Colour Issue",
 ]
 
 REFUND_REASON_OPTIONS = [REFUND_REASON_PLACEHOLDER] + REFUND_REASONS
