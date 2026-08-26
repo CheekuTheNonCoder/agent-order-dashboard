@@ -80,7 +80,7 @@ REFUND_REASON_OPTIONS = [REFUND_REASON_PLACEHOLDER] + REFUND_REASONS
 
 
 # =========================================================
-# NEW: SPECIAL COUPON OPTIONS
+# SPECIAL COUPON OPTIONS
 # =========================================================
 
 COUPON_TYPE_PLACEHOLDER = "— Select Coupon —"
@@ -100,7 +100,7 @@ COUPON_TYPE_OPTIONS = [COUPON_TYPE_PLACEHOLDER] + COUPON_TYPES
 if "admin_logged_in" not in st.session_state:
     st.session_state.admin_logged_in = False
 
-# NEW: Agent login/session state.
+# Agent login/session state.
 # st.session_state.agent_email holds the logged-in agent's email for the
 # duration of the browser session. It is set on Login and cleared on Logout.
 if "agent_email" not in st.session_state:
@@ -112,7 +112,7 @@ if "last_search_results" not in st.session_state:
 if "show_refund_confirm" not in st.session_state:
     st.session_state.show_refund_confirm = False
 
-# NEW: Special Coupon panel toggle — independent of the refund flow.
+# Special Coupon panel toggle — independent of the refund flow.
 if "show_coupon_form" not in st.session_state:
     st.session_state.show_coupon_form = False
 
@@ -325,6 +325,7 @@ st.markdown(
     div[data-testid="stCheckbox"] label p {
         color: var(--text-1) !important;
         font-weight: 500 !important;
+        font-size: 1rem !important;
         text-transform: none !important;
         letter-spacing: normal !important;
     }
@@ -632,6 +633,74 @@ st.markdown(
         to { opacity: 1; transform: translateY(0); }
     }
 
+    /* =====================================================
+       MASCOT — original character, time-of-day aware, reacts on hover.
+       NOTE: this is an original design, not any existing licensed
+       character (e.g. Pikachu), which we can't reproduce.
+    ===================================================== */
+
+    .mascot-wrap {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        cursor: pointer;
+        animation: mascotBob 3s ease-in-out infinite;
+        transition: transform 0.2s ease;
+    }
+    .mascot-wrap:hover {
+        animation-duration: 0.6s;
+        transform: scale(1.08);
+    }
+    @keyframes mascotBob {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
+    }
+
+    /* morning — coffee steam */
+    @keyframes steamRise {
+        0% { opacity: 0; transform: translateY(0); }
+        50% { opacity: 1; }
+        100% { opacity: 0; transform: translateY(-8px); }
+    }
+    .steam { animation: steamRise 2.2s ease-in-out infinite; }
+    .steam-2 { animation-delay: 0.45s; }
+    .mascot-morning:hover .steam { animation-duration: 0.9s; }
+
+    /* afternoon — laptop cursor typing */
+    @keyframes typeBlink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.15; }
+    }
+    .type-dot { animation: typeBlink 1s steps(2) infinite; }
+    .mascot-afternoon:hover .type-dot { animation-duration: 0.3s; }
+
+    /* evening — stretch/wave arms */
+    @keyframes stretchWiggle {
+        0%, 100% { transform: rotate(0deg); }
+        50% { transform: rotate(-8deg); }
+    }
+    .arm-stretch-l { transform-origin: 28px 42px; animation: stretchWiggle 2.4s ease-in-out infinite; }
+    .arm-stretch-r { transform-origin: 72px 42px; animation: stretchWiggle 2.4s ease-in-out infinite reverse; }
+    .mascot-evening:hover .arm-stretch-l,
+    .mascot-evening:hover .arm-stretch-r {
+        animation-duration: 0.55s;
+    }
+
+    /* night — floating zzz */
+    @keyframes zzzFloat {
+        0% { opacity: 0; transform: translateY(0); }
+        30% { opacity: 1; }
+        100% { opacity: 0; transform: translateY(-14px); }
+    }
+    .zzz { animation: zzzFloat 3s ease-in-out infinite; }
+    .zzz-2 { animation-delay: 0.6s; }
+    .zzz-3 { animation-delay: 1.2s; }
+    .mascot-night:hover .zzz { animation-duration: 1s; }
+    .mascot-night .mascot-mouth { display: none; }
+    .mascot-night .mascot-mouth-sleep { display: block; }
+    .mascot-mouth-sleep { display: none; }
+
     </style>
     """,
     unsafe_allow_html=True,
@@ -643,55 +712,140 @@ st.markdown(
 # =========================================================
 
 
-def get_greeting():
-    """Time-aware, meme-flavoured greeting. Returns (headline, subtitle).
-
-    IMPORTANT: uses India (Asia/Kolkata) time explicitly, not the server's
-    local clock. Most hosts (Streamlit Cloud etc.) run on UTC, so
-    datetime.now().hour was reading UTC hour, not IST — which is why the
-    greeting was stuck on "Pratahkal!" regardless of the actual time in India.
+def get_ist_hour():
     """
-    hour = datetime.now(ZoneInfo("Asia/Kolkata")).hour
+    Returns the current hour in India Standard Time (Asia/Kolkata),
+    regardless of the server's own timezone (most hosts run UTC).
+    """
+    return datetime.now(ZoneInfo("Asia/Kolkata")).hour
+
+
+def get_greeting(hour):
+    """Time-aware greeting. Returns (headline, subtitle)."""
 
     if 5 <= hour < 12:
         return (
-            "Pratahkal! ☀️",
-            "Fresh start. have a tea and Let's find what you need.",
+            "Good Morning ☀️",
+            "Fresh start — let's find what you need.",
         )
     elif 12 <= hour < 17:
         return (
-            "Namaskar, dophar ho gayi! 🌤️",
-            "What order are we searching for?",
+            "Good Afternoon 🌤️",
+            "What order are we searching for today?",
         )
     elif 17 <= hour < 21:
         return (
-            "Good evening, mitron. 🌙",
-            "Kya chal raha hai? Let's make this search easy.",
+            "Good Evening 🌙",
+            "Let's make this search quick and easy.",
         )
     else:
         return (
-            "Are you still awake? 🦉",
-            "Sleeping schedule is crying in the corner.",
+            "Working Late? 🦉",
+            "Burning the midnight oil — let's get this done.",
         )
 
 
+def render_mascot(hour):
+    """
+    Small, reactive mascot shown beside the greeting. This is an original
+    character design (not Pikachu or any other existing IP) — its pose
+    changes with the time of day and it reacts a little faster on hover:
+
+      • Morning   (5am–12pm)  → sipping coffee, steam rising
+      • Afternoon (12pm–5pm)  → working at a laptop
+      • Evening   (5pm–9pm)   → stretching / winding down
+      • Night     (9pm–5am)   → asleep, with floating "Zzz"
+    """
+
+    if 5 <= hour < 12:
+        variant = "morning"
+    elif 12 <= hour < 17:
+        variant = "afternoon"
+    elif 17 <= hour < 21:
+        variant = "evening"
+    else:
+        variant = "night"
+
+    if variant == "night":
+        eyes_svg = """
+            <path d="M38 44 q 4 4 8 0" stroke="#06070A" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+            <path d="M54 44 q 4 4 8 0" stroke="#06070A" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        """
+    else:
+        eyes_svg = """
+            <circle cx="42" cy="44" r="3.2" fill="#06070A"/>
+            <circle cx="58" cy="44" r="3.2" fill="#06070A"/>
+        """
+
+    accessories = {
+        "morning": """
+            <g>
+              <rect x="45" y="57" width="14" height="11" rx="2" fill="#F5F5F7" opacity="0.92"/>
+              <rect x="45" y="57" width="14" height="4" rx="2" fill="#BF5AF2"/>
+              <path class="steam steam-1" d="M49 53 Q 51 49 49 45" stroke="#F5F5F7" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <path class="steam steam-2" d="M55 53 Q 57 49 55 45" stroke="#F5F5F7" stroke-width="2" fill="none" stroke-linecap="round"/>
+            </g>
+        """,
+        "afternoon": """
+            <g>
+              <rect x="29" y="61" width="42" height="4" rx="2" fill="#0A84FF"/>
+              <rect x="33" y="47" width="34" height="14" rx="2" fill="#12141B" stroke="#64D2FF" stroke-width="1.5"/>
+              <circle class="type-dot" cx="50" cy="54" r="1.7" fill="#64D2FF"/>
+            </g>
+        """,
+        "evening": """
+            <g>
+              <path class="arm-stretch-l" d="M28 42 Q 17 32 21 21" stroke="#64D2FF" stroke-width="4" fill="none" stroke-linecap="round"/>
+              <path class="arm-stretch-r" d="M72 42 Q 83 32 79 21" stroke="#BF5AF2" stroke-width="4" fill="none" stroke-linecap="round"/>
+            </g>
+        """,
+        "night": """
+            <g>
+              <circle cx="74" cy="20" r="7" fill="#F5F5F7" opacity="0.85"/>
+              <circle cx="77.5" cy="17" r="6" fill="#06070A"/>
+              <text class="zzz zzz-1" x="66" y="36" font-size="9" fill="#A1A1A8">z</text>
+              <text class="zzz zzz-2" x="72" y="29" font-size="12" fill="#A1A1A8">z</text>
+              <text class="zzz zzz-3" x="79" y="21" font-size="15" fill="#A1A1A8">Z</text>
+            </g>
+        """,
+    }
+
+    return f"""
+    <div class="mascot-wrap mascot-{variant}" title="Your OrderOS buddy">
+      <svg viewBox="0 0 100 90" width="82" height="74">
+        <defs>
+          <linearGradient id="mascotGradient" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#64D2FF"/>
+            <stop offset="100%" stop-color="#BF5AF2"/>
+          </linearGradient>
+        </defs>
+        <ellipse cx="50" cy="50" rx="30" ry="26" fill="url(#mascotGradient)"/>
+        {eyes_svg}
+        <path class="mascot-mouth" d="M42 56 Q 50 62 58 56" stroke="#06070A" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        <path class="mascot-mouth-sleep" d="M45 57 q 5 2 10 0" stroke="#06070A" stroke-width="2" fill="none" stroke-linecap="round"/>
+        {accessories[variant]}
+      </svg>
+    </div>
+    """
+
+
 def status_badge(status):
-    """Render a status value as a colored, meme-flavoured pill badge (display-only)."""
+    """Render a status value as a colored pill badge (display-only)."""
     raw = "" if status is None else str(status)
     key = raw.strip().lower()
 
     if key == "delivered":
         css_class = "badge-green"
-        label = "Delivered (Mazza Aaya!)"
+        label = "Delivered"
     elif key == "cancelled":
         css_class = "badge-red"
-        label = "Cancelled (Dukh. Dard. Peeda.)"
+        label = "Cancelled"
     elif key == "in transit":
         css_class = "badge-blue"
-        label = "In Transit (Safar Jaari Hai)"
+        label = "In Transit"
     elif key == "pending":
         css_class = "badge-orange"
-        label = "Pending (Thoda Thahar Jao...)"
+        label = "Pending"
     else:
         css_class = "badge-grey"
         label = raw.title() if raw.strip() else "Unknown Status"
@@ -769,7 +923,7 @@ def prepare_refund_payload(refund_rows, agent_email):
     Convert selected refund rows into the clean payload structure that
     the Google Sheet / refund automation will eventually consume.
 
-    NEW: agent_email is appended to every row so the sheet's H column can
+    agent_email is appended to every row so the sheet's H column can
     record who submitted each refund. The existing A:G fields
     (channel_id, order_id, variant_id, quantity, amount, refund_reason)
     are completely unchanged.
@@ -819,7 +973,7 @@ def append_refunds_to_gsheet(refund_payload):
 
 def prepare_coupon_payload(customer_contact, coupon_type, agent_email, order_id=None):
     """
-    NEW: Build the Special Coupon payload. Completely separate from the
+    Build the Special Coupon payload. Completely separate from the
     refund payload/shape — this is never mixed into refund rows and never
     touches the Filtered Data sheet.
     """
@@ -840,7 +994,7 @@ def prepare_coupon_payload(customer_contact, coupon_type, agent_email, order_id=
 
 def submit_special_coupon(coupon_payload):
     """
-    NEW: Sends the Special Coupon payload to the same Apps Script Web App
+    Sends the Special Coupon payload to the same Apps Script Web App
     used for refunds. The Apps Script routes it to the separate
     "Special Coupons" sheet based on payload["type"], so refund rows and
     refund automation are never touched by this call.
@@ -866,7 +1020,7 @@ def submit_special_coupon(coupon_payload):
 
 def render_agent_login():
     """
-    NEW: Simple session-based Agent Login screen.
+    Simple session-based Agent Login screen.
     No OAuth / GCP — this just captures the agent's email into
     st.session_state.agent_email for the rest of the browser session.
     """
@@ -923,7 +1077,7 @@ with st.sidebar:
                 ◆ OrderOS
             </div>
             <div style="font-size:0.8rem; color:var(--text-2); margin-top:0.15rem;">
-                Order intelligence, made simple. (Thoda tameez se, thoda masti se.)
+                Order intelligence, made simple.
             </div>
         </div>
         """,
@@ -935,7 +1089,7 @@ with st.sidebar:
         ["Agent", "Admin"],
     )
 
-    # NEW: Show the logged-in agent's email + Logout button in the sidebar,
+    # Show the logged-in agent's email + Logout button in the sidebar,
     # only relevant while in Agent mode and once logged in.
     if mode == "Agent" and st.session_state.agent_email:
 
@@ -961,21 +1115,26 @@ with st.sidebar:
 
 if mode == "Agent":
 
-    # NEW: Gate the entire Agent Dashboard behind agent login.
+    # Gate the entire Agent Dashboard behind agent login.
     if not st.session_state.agent_email:
 
         render_agent_login()
 
     else:
 
-        greeting_headline, greeting_sub = get_greeting()
+        current_hour = get_ist_hour()
+        greeting_headline, greeting_sub = get_greeting(current_hour)
+        mascot_html = render_mascot(current_hour)
 
         st.markdown(
             f"""
-            <div class="oos-hero">
-                <div class="oos-eyebrow"><span class="pulse-dot"></span>OrderOS · Agent Order Intelligence</div>
-                <h1>{greeting_headline}</h1>
-                <p class="oos-greeting-sub">{greeting_sub}</p>
+            <div class="oos-hero" style="display:flex; align-items:center; justify-content:space-between; gap:1.2rem; flex-wrap:wrap;">
+                <div>
+                    <div class="oos-eyebrow"><span class="pulse-dot"></span>OrderOS · Agent Order Intelligence</div>
+                    <h1>{greeting_headline}</h1>
+                    <p class="oos-greeting-sub">{greeting_sub}</p>
+                </div>
+                {mascot_html}
             </div>
             """,
             unsafe_allow_html=True,
@@ -987,7 +1146,7 @@ if mode == "Agent":
 
         search_value = st.text_input(
             "Universal Search",
-            placeholder="ZOP Order ID · ZOP ID · Seller Order ID · AWB... (Arre jaldi waha se hato!)",
+            placeholder="ZOP Order ID · ZOP ID · Seller Order ID · AWB...",
         )
 
         search_button = st.button(
@@ -1003,7 +1162,7 @@ if mode == "Agent":
                 st.session_state.last_search_results = None
 
                 st.warning(
-                    "O Bhai, Maro Mujhe Maro! Input empty hai. Please enter an Order ID, ZOP ID, Seller Order ID or AWB."
+                    "Search field is empty. Please enter an Order ID, ZOP ID, Seller Order ID or AWB."
                 )
 
             else:
@@ -1014,9 +1173,7 @@ if mode == "Agent":
 
                     st.session_state.last_search_results = None
 
-                    st.error(
-                        "Yeh toh dukh khatam nahi hota sabka... No matching order found."
-                    )
+                    st.error("No matching order found.")
 
                 else:
 
@@ -1047,7 +1204,7 @@ if mode == "Agent":
                 f"""
                 <div class="glass-card" style="margin-top:1.4rem;">
                     <div class="oos-order-found">
-                        <span class="tag">Mil Gaya! 🎯</span>
+                        <span class="tag">Found</span>
                         <span class="id">{esc(order_id)}</span>
                     </div>
                     <div style="margin-top:0.4rem; font-size:0.85rem; font-weight:600; color:var(--accent-2);">
@@ -1134,7 +1291,7 @@ if mode == "Agent":
             # RAW IDENTIFIERS
             # =================================================
 
-            with st.expander("🔍 View all order identifiers (Pura Chittha)"):
+            with st.expander("🔍 View all order identifiers"):
 
                 identifiers = results[
                     [
@@ -1176,27 +1333,29 @@ if mode == "Agent":
                     }
                 )
 
-            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+            # FIX: use a real Streamlit bordered container instead of a raw
+            # HTML div — the previous open/close-div pattern doesn't actually
+            # wrap the checkboxes in Streamlit, so it rendered as an empty
+            # floating box above the (visually tiny) checkbox list.
+            with st.container(border=True):
 
-            selected_products = []
+                selected_products = []
 
-            for product in refund_products:
+                for product in refund_products:
 
-                checkbox_key = f"refund_chk_{product['row_key']}"
+                    checkbox_key = f"refund_chk_{product['row_key']}"
 
-                product_label = (
-                    str(product["title"])
-                    if product["title"] not in (None, "")
-                    else "Unnamed Product"
-                )
+                    product_label = (
+                        str(product["title"])
+                        if product["title"] not in (None, "")
+                        else "Unnamed Product"
+                    )
 
-                is_checked = st.checkbox(product_label, key=checkbox_key)
+                    is_checked = st.checkbox(product_label, key=checkbox_key)
 
-                if is_checked:
+                    if is_checked:
 
-                    selected_products.append(product)
-
-            st.markdown("</div>", unsafe_allow_html=True)
+                        selected_products.append(product)
 
             refund_clicked = st.button(
                 "💸 Refund",
@@ -1210,10 +1369,9 @@ if mode == "Agent":
                 st.session_state.show_refund_confirm = True
 
             # -------------------------------------------------
-            # NEW: SPECIAL COUPON
+            # SPECIAL COUPON
             # Placed directly below the Refund button, as a separate
-            # action. Uses a real Streamlit bordered container (not a
-            # raw HTML div) so nothing renders as an empty box.
+            # action. Uses a real Streamlit bordered container.
             # -------------------------------------------------
 
             st.markdown(
@@ -1307,9 +1465,7 @@ if mode == "Agent":
                                 st.rerun()
 
                             except Exception as e:
-                                st.error(
-                                    f"❌ Arre yaar, kuchh to gadbad hai daya! {str(e)}"
-                                )
+                                st.error(f"❌ Something went wrong: {str(e)}")
 
             # -------------------------------------------------
             # REFUND CONFIRMATION
@@ -1318,7 +1474,7 @@ if mode == "Agent":
             if st.session_state.show_refund_confirm and selected_products:
 
                 st.markdown(
-                    '<div class="oos-section-title">🎯 Refund Confirmation (Dhyaan Se!)</div>',
+                    '<div class="oos-section-title">🎯 Refund Confirmation</div>',
                     unsafe_allow_html=True,
                 )
 
@@ -1399,11 +1555,11 @@ if mode == "Agent":
                 if any_reason_missing:
 
                     st.warning(
-                        "Har product ke liye Reason chunna zaroori hai — bina wajah refund lock nahi hoga!"
+                        "Please select a reason for every product before locking the refund."
                     )
 
                 submit_clicked = st.button(
-                    "🔒 Computer Ji, Lock Kar Dijiye!",
+                    "🔒 Confirm & Lock Refund",
                     type="primary",
                     use_container_width=True,
                     disabled=any_reason_missing,
@@ -1411,7 +1567,7 @@ if mode == "Agent":
 
                 if submit_clicked and not any_reason_missing:
 
-                    # NEW: Guard — refund cannot be submitted without a logged-in agent.
+                    # Guard — refund cannot be submitted without a logged-in agent.
                     if not st.session_state.agent_email:
 
                         st.error(
@@ -1434,12 +1590,10 @@ if mode == "Agent":
                             st.session_state.show_refund_confirm = False
 
                             st.success(
-                                "🎉 7 Croreeee — Refund Submitted & GSheet Queue Updated Successfully!"
+                                "🎉 Refund submitted & Google Sheet updated successfully!"
                             )
                         except Exception as e:
-                            st.error(
-                                f"❌ Arre yaar, kuchh to gadbad hai daya! {str(e)}"
-                            )
+                            st.error(f"❌ Something went wrong: {str(e)}")
 
 
 # =========================================================
@@ -1452,10 +1606,10 @@ else:
     st.markdown(
         """
         <div class="oos-hero">
-            <div class="oos-eyebrow"><span class="pulse-dot"></span>OrderOS · Baburao Control Console</div>
+            <div class="oos-eyebrow"><span class="pulse-dot"></span>OrderOS · Admin Control Console</div>
             <h1>Control Center</h1>
             <p class="oos-greeting-sub">
-                Yeh Baburao ka style hai! Upload today's complete order dump smoothly.
+                Upload today's complete order dump.
             </p>
         </div>
         """,
@@ -1476,9 +1630,9 @@ else:
             """
             <div style="text-align:center; margin-bottom: 0.6rem;">
                 <div style="font-size:2.2rem; margin-bottom:0.3rem;">🛡️</div>
-                <div class="oos-section-title" style="margin-top:0;">Baburao's Lock Screen</div>
+                <div class="oos-section-title" style="margin-top:0;">Admin Access</div>
                 <div style="font-size:0.85rem; color:var(--text-2); margin-bottom:0.8rem;">
-                    Enter verification credentials before we unleash the databases.
+                    Enter your credentials to access the admin panel.
                 </div>
             </div>
             """,
@@ -1488,11 +1642,11 @@ else:
         password = st.text_input(
             "Admin Password",
             type="password",
-            placeholder="Secret key de re baba!",
+            placeholder="Enter admin password",
         )
 
         login_button = st.button(
-            "Verify & Grant Access (Sabaash Beta!)",
+            "Verify & Grant Access",
             type="primary",
         )
 
@@ -1509,7 +1663,7 @@ else:
 
             else:
 
-                st.error("Bilkul Chup! Incorrect password. Gunda banega re tu?")
+                st.error("Incorrect password. Please try again.")
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1523,7 +1677,7 @@ else:
 
         with top1:
 
-            st.success("🛡️ Session Authenticated. Full power access activated.")
+            st.success("🛡️ Session authenticated. Full access granted.")
 
         with top2:
 
@@ -1541,7 +1695,7 @@ else:
         # =================================================
 
         st.markdown(
-            '<div class="oos-section-title">📊 Database Statistics (Pura Ka Pura)</div>',
+            '<div class="oos-section-title">📊 Database Statistics</div>',
             unsafe_allow_html=True,
         )
 
@@ -1593,7 +1747,7 @@ else:
         )
 
         st.info(
-            "This upload replaces the existing dataset. Sambhalke, badme mat bolna data ud gaya!"
+            "This upload will replace the existing dataset. Please confirm carefully."
         )
 
         uploaded_file = st.file_uploader(
@@ -1639,7 +1793,7 @@ else:
 
                     df["quantity"] = numeric_qty.astype("int64")
 
-                st.write(f"**Rows detected (Total Maal):** {len(df):,}")
+                st.write(f"**Rows detected:** {len(df):,}")
 
                 # -----------------------------------------
                 # COLUMN VALIDATION
@@ -1652,7 +1806,7 @@ else:
                 if missing_columns:
 
                     st.error(
-                        "❌ Operational Halt! Required columns are missing. Yeh kya jhamela bana diya?"
+                        "❌ Required columns are missing. Please check the file and try again."
                     )
 
                     st.write("Missing columns:")
@@ -1667,14 +1821,14 @@ else:
                 # VALID FILE
                 # -----------------------------------------
 
-                st.success("✅ Bawaal Cheez Hai! File structure is perfectly valid.")
+                st.success("✅ File structure is valid.")
 
                 # -----------------------------------------
                 # PREVIEW
                 # -----------------------------------------
 
                 st.markdown(
-                    '<div class="oos-section-title">Schema Preview (Ek Jhalak)</div>',
+                    '<div class="oos-section-title">Schema Preview</div>',
                     unsafe_allow_html=True,
                 )
 
@@ -1686,7 +1840,7 @@ else:
 
                 st.warning(
                     "Uploading this file will replace the current database. "
-                    "Risk hai toh ishq hai! Confirm karke aage badho."
+                    "Please confirm to continue."
                 )
 
                 # -----------------------------------------
@@ -1698,20 +1852,16 @@ else:
                 if confirm:
 
                     if st.button(
-                        "💾 Replace Database (Karde Bhai!)",
+                        "💾 Replace Database",
                         type="primary",
                         use_container_width=True,
                     ):
 
-                        with st.spinner(
-                            "Processing transaction data... Sabra karo bhidu!"
-                        ):
+                        with st.spinner("Processing transaction data..."):
 
                             replace_orders(df, uploaded_file.name)
 
-                        st.success(
-                            f"🚀 Uploaded {len(df):,} records successfully! Paisa hi paisa!"
-                        )
+                        st.success(f"🚀 Uploaded {len(df):,} records successfully!")
 
                         st.rerun()
 
@@ -1747,4 +1897,4 @@ else:
 
         else:
 
-            st.info("No order dump has been uploaded yet. Abhi tak sannata hai bhidu.")
+            st.info("No order dump has been uploaded yet.")
