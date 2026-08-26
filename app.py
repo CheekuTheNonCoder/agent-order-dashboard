@@ -640,19 +640,63 @@ st.markdown(
     }
 
     /* =====================================================
-       CAT COMPANION — original character (not any existing IP),
-       a small virtual coworker that lives beside the greeting and
-       reacts to what's happening in the dashboard (idle, searching,
-       order found/not found, refund, coupon, and time-of-day).
+       CAT COMPANION — original character (not any existing IP).
+       Floats fixed in the bottom-right corner so it stays visible on
+       scroll, instead of living inside the hero and disappearing once
+       the agent scrolls past the top of the page.
     ===================================================== */
 
     .cat-wrap {
-        display: inline-flex;
-        align-items: flex-end;
-        justify-content: center;
-        flex-shrink: 0;
+        display: flex;
+        flex-direction: column-reverse;
+        align-items: center;
+        gap: 0.3rem;
+        position: fixed;
+        right: 22px;
+        bottom: 22px;
+        z-index: 999;
         cursor: pointer;
-        position: relative;
+        /* Only the drawn cat + caption are clickable/hoverable — the
+           rest of this fixed box lets clicks/scroll pass through to
+           whatever dashboard content sits underneath it. */
+        pointer-events: none;
+    }
+    .cat-wrap svg, .cat-wrap .cat-caption {
+        pointer-events: auto;
+    }
+    .cat-wrap::before {
+        content: "";
+        position: absolute;
+        inset: -14px -10px -8px -10px;
+        background: var(--glass);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid var(--glass-border);
+        border-radius: 22px;
+        box-shadow: var(--shadow);
+        z-index: -1;
+        pointer-events: none;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .cat-wrap:hover::before {
+        transform: scale(1.04);
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 2px 10px rgba(0, 0, 0, 0.4);
+    }
+    @media (max-width: 640px) {
+        .cat-wrap {
+            right: 12px;
+            bottom: 12px;
+        }
+        .cat-wrap svg {
+            width: 62px;
+            height: 62px;
+        }
+        .cat-wrap .cat-caption {
+            font-size: 0.64rem;
+            max-width: 120px;
+            white-space: normal;
+            text-align: center;
+        }
     }
     .cat-wrap .cat-body-anim {
         animation: catBreathe 3.6s ease-in-out infinite;
@@ -798,11 +842,17 @@ st.markdown(
     .cat-caption {
         font-size: 0.72rem;
         font-weight: 600;
-        color: var(--text-2);
+        color: var(--text-1);
         text-align: center;
-        margin-top: 0.2rem;
         letter-spacing: 0.01em;
         white-space: nowrap;
+        background: var(--glass-strong);
+        border: 1px solid var(--glass-border);
+        border-radius: 999px;
+        padding: 0.22rem 0.65rem;
+        backdrop-filter: blur(14px);
+        box-shadow: var(--shadow);
+        animation: fadeUp 0.3s ease both;
     }
 
     </style>
@@ -1472,16 +1522,19 @@ if mode == "Agent":
         mascot_html = render_cat_companion(get_mascot_state(current_hour))
 
         st.markdown(
-            '<div class="oos-hero" style="display:flex; align-items:center; justify-content:space-between; gap:1.2rem; flex-wrap:wrap;">'
-            "<div>"
+            '<div class="oos-hero">'
             '<div class="oos-eyebrow"><span class="pulse-dot"></span>OrderOS · Agent Order Intelligence</div>'
             f"<h1>{greeting_headline}</h1>"
             f'<p class="oos-greeting-sub">{greeting_sub}</p>'
-            "</div>"
-            f"{mascot_html}"
             "</div>",
             unsafe_allow_html=True,
         )
+
+        # The cat companion is CSS `position: fixed`, so it renders as a
+        # floating widget pinned to the bottom-right of the viewport and
+        # stays visible no matter how far down the dashboard the agent
+        # scrolls — it no longer disappears once the hero scrolls away.
+        st.markdown(mascot_html, unsafe_allow_html=True)
 
         # -----------------------------------------------------
         # UNIVERSAL SEARCH
