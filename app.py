@@ -116,6 +116,12 @@ if "show_refund_confirm" not in st.session_state:
 if "show_coupon_form" not in st.session_state:
     st.session_state.show_coupon_form = False
 
+# Cat companion's current pose. None means "no active event" — the cat
+# falls back to a time-of-day pose (see get_mascot_state). Business logic
+# below updates this as the agent searches, opens refund/coupon, etc.
+if "mascot_state" not in st.session_state:
+    st.session_state.mascot_state = None
+
 
 # =========================================================
 # GLASSMORPHISM DESIGN SYSTEM
@@ -634,72 +640,170 @@ st.markdown(
     }
 
     /* =====================================================
-       MASCOT — original character, time-of-day aware, reacts on hover.
-       NOTE: this is an original design, not any existing licensed
-       character (e.g. Pikachu), which we can't reproduce.
+       CAT COMPANION — original character (not any existing IP),
+       a small virtual coworker that lives beside the greeting and
+       reacts to what's happening in the dashboard (idle, searching,
+       order found/not found, refund, coupon, and time-of-day).
     ===================================================== */
 
-    .mascot-wrap {
+    .cat-wrap {
         display: inline-flex;
-        align-items: center;
+        align-items: flex-end;
         justify-content: center;
         flex-shrink: 0;
         cursor: pointer;
-        animation: mascotBob 3s ease-in-out infinite;
+        position: relative;
+    }
+    .cat-wrap .cat-body-anim {
+        animation: catBreathe 3.6s ease-in-out infinite;
+        transform-origin: 50% 85%;
         transition: transform 0.2s ease;
     }
-    .mascot-wrap:hover {
-        animation-duration: 0.6s;
-        transform: scale(1.08);
+    .cat-wrap:hover .cat-body-anim {
+        animation-duration: 1.4s;
     }
-    @keyframes mascotBob {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-5px); }
+    @keyframes catBreathe {
+        0%, 100% { transform: translateY(0) scaleY(1); }
+        50% { transform: translateY(-2px) scaleY(1.015); }
     }
 
-    /* morning — coffee steam */
-    @keyframes steamRise {
+    /* blink — every cat, every state, occasional blink loop */
+    @keyframes catBlink {
+        0%, 88%, 100% { transform: scaleY(1); }
+        92% { transform: scaleY(0.08); }
+        96% { transform: scaleY(1); }
+    }
+    .cat-eye { transform-origin: center; animation: catBlink 4.6s ease-in-out infinite; }
+    .cat-eye-r { animation-delay: 0.06s; }
+    .cat-wrap:hover .cat-eye { animation-duration: 1.8s; }
+
+    /* ears — small twitch loop */
+    @keyframes earTwitch {
+        0%, 82%, 100% { transform: rotate(0deg); }
+        86% { transform: rotate(-9deg); }
+        90% { transform: rotate(4deg); }
+    }
+    .cat-ear-l { transform-origin: 30px 26px; animation: earTwitch 5.2s ease-in-out infinite; }
+    .cat-ear-r { transform-origin: 70px 26px; animation: earTwitch 5.2s ease-in-out infinite; animation-delay: 0.5s; }
+    .cat-wrap:hover .cat-ear-l, .cat-wrap:hover .cat-ear-r { animation-duration: 1s; }
+
+    /* tail — gentle sway, faster + wider when happy */
+    @keyframes tailSway {
+        0%, 100% { transform: rotate(-6deg); }
+        50% { transform: rotate(10deg); }
+    }
+    .cat-tail { transform-origin: 82px 78px; animation: tailSway 2.8s ease-in-out infinite; }
+    .cat-happy .cat-tail { animation: tailSway 0.55s ease-in-out infinite; }
+    .cat-confused .cat-tail { animation-duration: 4.5s; }
+
+    /* head tilt — used for confused / curious states */
+    .cat-head-tilt { transform-origin: 50px 48px; }
+    .cat-confused .cat-head-tilt { animation: headTiltConfused 2.6s ease-in-out infinite; }
+    @keyframes headTiltConfused {
+        0%, 100% { transform: rotate(0deg); }
+        30% { transform: rotate(-11deg); }
+        60% { transform: rotate(-6deg); }
+    }
+    .cat-coupon .cat-head-tilt, .cat-refund .cat-head-tilt {
+        animation: headTiltCurious 3s ease-in-out infinite;
+    }
+    @keyframes headTiltCurious {
+        0%, 100% { transform: rotate(0deg); }
+        50% { transform: rotate(6deg); }
+    }
+
+    /* happy bounce — order found / refund success / coupon success */
+    @keyframes catBounce {
+        0%, 100% { transform: translateY(0); }
+        30% { transform: translateY(-7px); }
+        55% { transform: translateY(0); }
+        75% { transform: translateY(-2px); }
+    }
+    .cat-happy .cat-body-anim { animation: catBounce 0.85s ease-out 2; }
+
+    /* sigh — not found */
+    @keyframes catSigh {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(2px); }
+    }
+    .cat-confused .cat-body-anim { animation: catSigh 2.6s ease-in-out infinite; }
+
+    /* paw typing — searching state */
+    @keyframes pawTap {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-2.5px); }
+    }
+    .cat-paw-l { animation: pawTap 0.5s ease-in-out infinite; }
+    .cat-paw-r { animation: pawTap 0.5s ease-in-out infinite 0.25s; }
+
+    /* screen glow — searching state */
+    @keyframes screenGlow {
+        0%, 100% { opacity: 0.55; }
+        50% { opacity: 1; }
+    }
+    .cat-screen-glow { animation: screenGlow 1.4s ease-in-out infinite; }
+
+    /* steam — morning coffee */
+    @keyframes catSteamRise {
         0% { opacity: 0; transform: translateY(0); }
         50% { opacity: 1; }
-        100% { opacity: 0; transform: translateY(-8px); }
+        100% { opacity: 0; transform: translateY(-9px); }
     }
-    .steam { animation: steamRise 2.2s ease-in-out infinite; }
-    .steam-2 { animation-delay: 0.45s; }
-    .mascot-morning:hover .steam { animation-duration: 0.9s; }
+    .cat-steam { animation: catSteamRise 2.4s ease-in-out infinite; }
+    .cat-steam-2 { animation-delay: 0.5s; }
 
-    /* afternoon — laptop cursor typing */
-    @keyframes typeBlink {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.15; }
-    }
-    .type-dot { animation: typeBlink 1s steps(2) infinite; }
-    .mascot-afternoon:hover .type-dot { animation-duration: 0.3s; }
-
-    /* evening — stretch/wave arms */
-    @keyframes stretchWiggle {
+    /* stretch arms — evening */
+    @keyframes catStretch {
         0%, 100% { transform: rotate(0deg); }
-        50% { transform: rotate(-8deg); }
+        50% { transform: rotate(-10deg); }
     }
-    .arm-stretch-l { transform-origin: 28px 42px; animation: stretchWiggle 2.4s ease-in-out infinite; }
-    .arm-stretch-r { transform-origin: 72px 42px; animation: stretchWiggle 2.4s ease-in-out infinite reverse; }
-    .mascot-evening:hover .arm-stretch-l,
-    .mascot-evening:hover .arm-stretch-r {
-        animation-duration: 0.55s;
-    }
+    .cat-stretch-l { transform-origin: 26px 60px; animation: catStretch 2.6s ease-in-out infinite; }
+    .cat-stretch-r { transform-origin: 74px 60px; animation: catStretch 2.6s ease-in-out infinite reverse; }
 
-    /* night — floating zzz */
-    @keyframes zzzFloat {
-        0% { opacity: 0; transform: translateY(0); }
-        30% { opacity: 1; }
-        100% { opacity: 0; transform: translateY(-14px); }
+    /* zzz — sleeping */
+    @keyframes catZzz {
+        0% { opacity: 0; transform: translateY(0) scale(0.8); }
+        35% { opacity: 1; }
+        100% { opacity: 0; transform: translateY(-15px) scale(1.05); }
     }
-    .zzz { animation: zzzFloat 3s ease-in-out infinite; }
-    .zzz-2 { animation-delay: 0.6s; }
-    .zzz-3 { animation-delay: 1.2s; }
-    .mascot-night:hover .zzz { animation-duration: 1s; }
-    .mascot-night .mascot-mouth { display: none; }
-    .mascot-night .mascot-mouth-sleep { display: block; }
-    .mascot-mouth-sleep { display: none; }
+    .cat-zzz { animation: catZzz 3.2s ease-in-out infinite; }
+    .cat-zzz-2 { animation-delay: 0.7s; }
+    .cat-zzz-3 { animation-delay: 1.4s; }
+    .cat-sleeping .cat-body-anim { animation: catBreathe 4.4s ease-in-out infinite; }
+
+    /* pointing paw — refund state */
+    @keyframes pawPoint {
+        0%, 100% { transform: translateX(0); }
+        50% { transform: translateX(3px); }
+    }
+    .cat-paw-point { animation: pawPoint 1.6s ease-in-out infinite; }
+
+    /* sparkle burst — refund success / coupon success */
+    @keyframes sparklePop {
+        0% { opacity: 0; transform: scale(0.3); }
+        40% { opacity: 1; transform: scale(1.15); }
+        100% { opacity: 0; transform: scale(0.6); }
+    }
+    .cat-sparkle { animation: sparklePop 1.1s ease-out infinite; }
+    .cat-sparkle-2 { animation-delay: 0.25s; }
+    .cat-sparkle-3 { animation-delay: 0.5s; }
+
+    /* coupon card wiggle */
+    @keyframes couponWiggle {
+        0%, 100% { transform: rotate(-4deg); }
+        50% { transform: rotate(4deg); }
+    }
+    .cat-coupon-card { transform-origin: center; animation: couponWiggle 1.8s ease-in-out infinite; }
+
+    .cat-caption {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--text-2);
+        text-align: center;
+        margin-top: 0.2rem;
+        letter-spacing: 0.01em;
+        white-space: nowrap;
+    }
 
     </style>
     """,
@@ -745,94 +849,326 @@ def get_greeting(hour):
         )
 
 
-def render_mascot(hour):
+def get_mascot_state(hour):
     """
-    Small, reactive mascot shown beside the greeting. This is an original
-    character design (not Pikachu or any other existing IP) — its pose
-    changes with the time of day and it reacts a little faster on hover:
+    Resolves which pose the cat companion should be in.
 
-      • Morning   (5am–12pm)  → sipping coffee, steam rising
-      • Afternoon (12pm–5pm)  → working at a laptop
-      • Evening   (5pm–9pm)   → stretching / winding down
-      • Night     (9pm–5am)   → asleep, with floating "Zzz"
+    Priority:
+      1. An explicit action state stashed in st.session_state.mascot_state
+         (set by the search / refund / coupon flows below — e.g. "found",
+         "refund_success"). This is what lets the cat react to what the
+         agent is actually doing.
+      2. Otherwise, fall back to a time-of-day pose so the cat still feels
+         alive when nothing else is going on:
+           • 5am–12pm  → morning  (sleepy, coffee)
+           • 12pm–5pm  → idle     (normal daytime pose)
+           • 5pm–9pm   → evening  (stretching)
+           • 9pm–5am   → sleeping (curled up asleep)
+
+    Streamlit reruns the whole script on every interaction, so this is
+    plain, deterministic Python — no client-side state, nothing that can
+    get out of sync with a rerun.
     """
+    action_state = st.session_state.get("mascot_state")
+    if action_state:
+        return action_state
 
     if 5 <= hour < 12:
-        variant = "morning"
+        return "morning"
     elif 12 <= hour < 17:
-        variant = "afternoon"
+        return "idle"
     elif 17 <= hour < 21:
-        variant = "evening"
+        return "evening"
     else:
-        variant = "night"
+        return "sleeping"
 
-    # NOTE: every fragment below is a SINGLE LINE with no embedded newlines.
-    # Streamlit's Markdown renderer treats a blank/whitespace-only line as
-    # "the raw HTML block just ended" — multi-line fragments substituted
-    # into each other were leaving blank lines behind, which caused
-    # everything after that point to fall through to a literal, escaped
-    # code block instead of being rendered as SVG. Flattening to one line
-    # per fragment removes that possibility entirely.
 
-    if variant == "night":
-        eyes_svg = (
-            '<path d="M38 44 q 4 4 8 0" stroke="#06070A" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
-            '<path d="M54 44 q 4 4 8 0" stroke="#06070A" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
-        )
-    else:
-        eyes_svg = (
-            '<circle cx="42" cy="44" r="3.2" fill="#06070A"/>'
-            '<circle cx="58" cy="44" r="3.2" fill="#06070A"/>'
-        )
+def render_cat_companion(state="idle"):
+    """
+    Renders OrderOS's little cat coworker — one consistent character
+    (original design, not based on any existing IP) whose pose, face and
+    tiny props change with `state` so it feels like it's reacting to the
+    dashboard: sipping coffee in the morning, "typing" while an agent
+    searches, celebrating a found order or a submitted refund, looking
+    confused when nothing matches, curious about a coupon, stretching in
+    the evening, or curled up asleep at night.
 
-    accessories = {
-        "morning": (
-            "<g>"
-            '<rect x="45" y="57" width="14" height="11" rx="2" fill="#F5F5F7" opacity="0.92"/>'
-            '<rect x="45" y="57" width="14" height="4" rx="2" fill="#BF5AF2"/>'
-            '<path class="steam steam-1" d="M49 53 Q 51 49 49 45" stroke="#F5F5F7" stroke-width="2" fill="none" stroke-linecap="round"/>'
-            '<path class="steam steam-2" d="M55 53 Q 57 49 55 45" stroke="#F5F5F7" stroke-width="2" fill="none" stroke-linecap="round"/>'
-            "</g>"
-        ),
-        "afternoon": (
-            "<g>"
-            '<rect x="29" y="61" width="42" height="4" rx="2" fill="#0A84FF"/>'
-            '<rect x="33" y="47" width="34" height="14" rx="2" fill="#12141B" stroke="#64D2FF" stroke-width="1.5"/>'
-            '<circle class="type-dot" cx="50" cy="54" r="1.7" fill="#64D2FF"/>'
-            "</g>"
-        ),
-        "evening": (
-            "<g>"
-            '<path class="arm-stretch-l" d="M28 42 Q 17 32 21 21" stroke="#64D2FF" stroke-width="4" fill="none" stroke-linecap="round"/>'
-            '<path class="arm-stretch-r" d="M72 42 Q 83 32 79 21" stroke="#BF5AF2" stroke-width="4" fill="none" stroke-linecap="round"/>'
-            "</g>"
-        ),
-        "night": (
-            "<g>"
-            '<circle cx="74" cy="20" r="7" fill="#F5F5F7" opacity="0.85"/>'
-            '<circle cx="77.5" cy="17" r="6" fill="#06070A"/>'
-            '<text class="zzz zzz-1" x="66" y="36" font-size="9" fill="#A1A1A8">z</text>'
-            '<text class="zzz zzz-2" x="72" y="29" font-size="12" fill="#A1A1A8">z</text>'
-            '<text class="zzz zzz-3" x="79" y="21" font-size="15" fill="#A1A1A8">Z</text>'
-            "</g>"
-        ),
+    Recognised states: idle, morning, searching, found, not_found,
+    refund, refund_success, coupon, coupon_success, evening, sleeping.
+    Anything unrecognised safely falls back to "idle".
+
+    NOTE: every fragment below is a SINGLE LINE with no embedded newlines.
+    Streamlit's Markdown renderer treats a blank/whitespace-only line as
+    "the raw HTML block just ended" — multi-line fragments substituted
+    into each other leave blank lines behind, which breaks SVG rendering
+    into a literal, escaped code block. Flattening to one line per
+    fragment removes that possibility entirely.
+    """
+
+    # ---- face parts per state -------------------------------------------------
+
+    EYES_NORMAL = (
+        '<circle class="cat-eye cat-eye-l" cx="42" cy="42" r="3.4" fill="#2B1B12"/>'
+        '<circle class="cat-eye cat-eye-r" cx="58" cy="42" r="3.4" fill="#2B1B12"/>'
+    )
+    EYES_SLEEPY = (
+        '<path d="M37 42 Q 42 45 47 42" stroke="#2B1B12" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
+        '<path d="M53 42 Q 58 45 63 42" stroke="#2B1B12" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
+    )
+    EYES_FOCUSED = (
+        '<circle class="cat-eye cat-eye-l" cx="42" cy="43" r="2.9" fill="#2B1B12"/>'
+        '<circle class="cat-eye cat-eye-r" cx="58" cy="43" r="2.9" fill="#2B1B12"/>'
+    )
+    EYES_HAPPY = (
+        '<path d="M37 43 Q 42 37 47 43" stroke="#2B1B12" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
+        '<path d="M53 43 Q 58 37 63 43" stroke="#2B1B12" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
+    )
+    EYES_CONFUSED = (
+        '<circle cx="42" cy="43" r="3.2" fill="#2B1B12"/>'
+        '<path d="M53 41 Q 58 44 63 41.5" stroke="#2B1B12" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
+        '<path d="M36 36 Q 42 33 47 36" stroke="#2B1B12" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
+    )
+    EYES_CURIOUS = (
+        '<circle class="cat-eye cat-eye-l" cx="42" cy="42" r="4.1" fill="#2B1B12"/>'
+        '<circle class="cat-eye cat-eye-r" cx="58" cy="42" r="4.1" fill="#2B1B12"/>'
+        '<circle cx="43.2" cy="40.6" r="1" fill="#F5F5F7"/>'
+        '<circle cx="59.2" cy="40.6" r="1" fill="#F5F5F7"/>'
+    )
+    EYES_RELAXED = (
+        '<path d="M37 43 Q 42 46 47 43" stroke="#2B1B12" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
+        '<path d="M53 43 Q 58 46 63 43" stroke="#2B1B12" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
+    )
+    EYES_CLOSED = (
+        '<path d="M37 43 q 5 3 10 0" stroke="#2B1B12" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
+        '<path d="M53 43 q 5 3 10 0" stroke="#2B1B12" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
+    )
+
+    MOUTH_NEUTRAL = '<path d="M45 54 Q 50 58 55 54" stroke="#2B1B12" stroke-width="1.8" fill="none" stroke-linecap="round"/>'
+    MOUTH_YAWN = '<ellipse cx="50" cy="55" rx="3.2" ry="4" fill="#5C3A2E"/>'
+    MOUTH_FOCUSED = '<path d="M47 55 L 53 55" stroke="#2B1B12" stroke-width="1.8" fill="none" stroke-linecap="round"/>'
+    MOUTH_HAPPY = '<path d="M42 53 Q 50 61 58 53" stroke="#2B1B12" stroke-width="2" fill="none" stroke-linecap="round"/>'
+    MOUTH_CONFUSED = '<path d="M45 56 Q 50 53 55 56" stroke="#2B1B12" stroke-width="1.8" fill="none" stroke-linecap="round"/>'
+    MOUTH_SLEEP = '<path d="M46 55 Q 50 57 54 55" stroke="#2B1B12" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
+
+    NOSE = '<path d="M48 49 L 52 49 L 50 51.5 Z" fill="#E8869B"/>'
+    WHISKERS = (
+        '<path d="M22 46 L 34 44" stroke="#2B1B12" stroke-width="1" opacity="0.4" stroke-linecap="round"/>'
+        '<path d="M22 51 L 34 49" stroke="#2B1B12" stroke-width="1" opacity="0.4" stroke-linecap="round"/>'
+        '<path d="M78 46 L 66 44" stroke="#2B1B12" stroke-width="1" opacity="0.4" stroke-linecap="round"/>'
+        '<path d="M78 51 L 66 49" stroke="#2B1B12" stroke-width="1" opacity="0.4" stroke-linecap="round"/>'
+    )
+
+    BASE_PAWS = (
+        '<ellipse cx="40" cy="88" rx="6" ry="4.5" fill="url(#catGradient)"/>'
+        '<ellipse cx="60" cy="88" rx="6" ry="4.5" fill="url(#catGradient)"/>'
+    )
+
+    # ---- accessory props per state ---------------------------------------------
+
+    ACC_MORNING = (
+        "<g>"
+        '<rect x="20" y="90" width="60" height="4" rx="2" fill="#75757D" opacity="0.35"/>'
+        '<rect x="62" y="76" width="12" height="10" rx="2" fill="#F5F5F7" opacity="0.94"/>'
+        '<rect x="62" y="76" width="12" height="3.5" rx="1.5" fill="#BF5AF2"/>'
+        '<path d="M74 79 q 4 1 3 5 q -1 3 -3 3" stroke="#F5F5F7" stroke-width="1.6" fill="none"/>'
+        '<path class="cat-steam cat-steam-1" d="M66 74 Q 68 70 66 66" stroke="#A1A1A8" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
+        '<path class="cat-steam cat-steam-2" d="M71 74 Q 73 70 71 66" stroke="#A1A1A8" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
+        "</g>"
+    )
+
+    ACC_SEARCHING = (
+        "<g>"
+        '<rect x="20" y="90" width="60" height="4" rx="2" fill="#75757D" opacity="0.35"/>'
+        '<rect x="30" y="70" width="40" height="17" rx="2.5" fill="#12141B" stroke="#64D2FF" stroke-width="1.4"/>'
+        '<rect class="cat-screen-glow" x="33" y="73" width="34" height="11" rx="1.5" fill="#0A84FF" opacity="0.7"/>'
+        '<ellipse class="cat-paw-l" cx="38" cy="88" rx="6" ry="4.5" fill="url(#catGradient)"/>'
+        '<ellipse class="cat-paw-r" cx="62" cy="88" rx="6" ry="4.5" fill="url(#catGradient)"/>'
+        "</g>"
+    )
+
+    ACC_SPARKLES = (
+        "<g>"
+        '<path class="cat-sparkle cat-sparkle-1" d="M18 30 L 20 34 L 24 36 L 20 38 L 18 42 L 16 38 L 12 36 L 16 34 Z" fill="#64D2FF"/>'
+        '<path class="cat-sparkle cat-sparkle-2" d="M82 24 L 83.5 27 L 87 28.5 L 83.5 30 L 82 33 L 80.5 30 L 77 28.5 L 80.5 27 Z" fill="#BF5AF2"/>'
+        '<path class="cat-sparkle cat-sparkle-3" d="M84 52 L 85 54.5 L 87.5 55.5 L 85 56.5 L 84 59 L 83 56.5 L 80.5 55.5 L 83 54.5 Z" fill="#30D158"/>'
+        "</g>"
+    )
+
+    ACC_REFUND = (
+        '<g class="cat-paw-point">'
+        '<ellipse cx="72" cy="80" rx="6.5" ry="4.5" fill="url(#catGradient)" transform="rotate(-18 72 80)"/>'
+        '<ellipse cx="40" cy="88" rx="6" ry="4.5" fill="url(#catGradient)"/>'
+        "</g>"
+    )
+
+    ACC_COUPON = (
+        "<g>"
+        '<ellipse cx="40" cy="88" rx="6" ry="4.5" fill="url(#catGradient)"/>'
+        '<g class="cat-coupon-card">'
+        '<rect x="60" y="72" width="18" height="12" rx="2" fill="#12141B" stroke="#FF9F0A" stroke-width="1.3" stroke-dasharray="2 1.5"/>'
+        '<circle cx="65" cy="78" r="1.6" fill="#FF9F0A"/>'
+        '<rect x="68" y="76" width="7" height="1.6" rx="0.8" fill="#A1A1A8"/>'
+        '<rect x="68" y="79" width="5" height="1.6" rx="0.8" fill="#A1A1A8"/>'
+        "</g>"
+        "</g>"
+    )
+
+    ACC_EVENING = (
+        "<g>"
+        '<path class="cat-stretch-l" d="M28 62 Q 15 55 17 42" stroke="url(#catGradient)" stroke-width="5" fill="none" stroke-linecap="round"/>'
+        '<path class="cat-stretch-r" d="M72 62 Q 85 55 83 42" stroke="url(#catGradient)" stroke-width="5" fill="none" stroke-linecap="round"/>'
+        "</g>"
+    )
+
+    ACC_SLEEPING = (
+        "<g>"
+        '<ellipse cx="50" cy="93" rx="34" ry="7" fill="#64D2FF" opacity="0.14"/>'
+        '<path d="M20 90 Q 50 100 80 90 L 80 84 Q 50 92 20 84 Z" fill="#12141B" opacity="0.55"/>'
+        '<text class="cat-zzz cat-zzz-1" x="68" y="30" font-size="8" fill="#A1A1A8">z</text>'
+        '<text class="cat-zzz cat-zzz-2" x="74" y="23" font-size="11" fill="#A1A1A8">z</text>'
+        '<text class="cat-zzz cat-zzz-3" x="81" y="14" font-size="14" fill="#A1A1A8">Z</text>'
+        "</g>"
+    )
+
+    # ---- per-state configuration -------------------------------------------
+
+    states = {
+        "idle": {
+            "wrapper": "cat-idle",
+            "eyes": EYES_NORMAL,
+            "mouth": MOUTH_NEUTRAL,
+            "accessory": "",
+            "skip_base_paws": False,
+            "caption": "",
+        },
+        "morning": {
+            "wrapper": "cat-morning",
+            "eyes": EYES_SLEEPY,
+            "mouth": MOUTH_YAWN,
+            "accessory": ACC_MORNING,
+            "skip_base_paws": True,
+            "caption": "Good morning 😴",
+        },
+        "searching": {
+            "wrapper": "cat-searching",
+            "eyes": EYES_FOCUSED,
+            "mouth": MOUTH_FOCUSED,
+            "accessory": ACC_SEARCHING,
+            "skip_base_paws": True,
+            "caption": "Checking...",
+        },
+        "found": {
+            "wrapper": "cat-happy",
+            "eyes": EYES_HAPPY,
+            "mouth": MOUTH_HAPPY,
+            "accessory": ACC_SPARKLES,
+            "skip_base_paws": False,
+            "caption": "Found it! 😎",
+        },
+        "not_found": {
+            "wrapper": "cat-confused",
+            "eyes": EYES_CONFUSED,
+            "mouth": MOUTH_CONFUSED,
+            "accessory": "",
+            "skip_base_paws": False,
+            "caption": "Hmm... nothing here.",
+        },
+        "refund": {
+            "wrapper": "cat-refund",
+            "eyes": EYES_CURIOUS,
+            "mouth": MOUTH_NEUTRAL,
+            "accessory": ACC_REFUND,
+            "skip_base_paws": True,
+            "caption": "Let's check this refund.",
+        },
+        "refund_success": {
+            "wrapper": "cat-happy",
+            "eyes": EYES_HAPPY,
+            "mouth": MOUTH_HAPPY,
+            "accessory": ACC_SPARKLES,
+            "skip_base_paws": False,
+            "caption": "Refund submitted! 🐱",
+        },
+        "coupon": {
+            "wrapper": "cat-coupon",
+            "eyes": EYES_CURIOUS,
+            "mouth": MOUTH_NEUTRAL,
+            "accessory": ACC_COUPON,
+            "skip_base_paws": True,
+            "caption": "Ooh, a coupon?",
+        },
+        "coupon_success": {
+            "wrapper": "cat-happy",
+            "eyes": EYES_HAPPY,
+            "mouth": MOUTH_HAPPY,
+            "accessory": ACC_SPARKLES,
+            "skip_base_paws": False,
+            "caption": "Coupon sent! 🎉",
+        },
+        "evening": {
+            "wrapper": "cat-evening",
+            "eyes": EYES_RELAXED,
+            "mouth": MOUTH_NEUTRAL,
+            "accessory": ACC_EVENING,
+            "skip_base_paws": False,
+            "caption": "Long day, huh?",
+        },
+        "sleeping": {
+            "wrapper": "cat-sleeping",
+            "eyes": EYES_CLOSED,
+            "mouth": MOUTH_SLEEP,
+            "accessory": ACC_SLEEPING,
+            "skip_base_paws": False,
+            "caption": "Zzz...",
+        },
     }
 
-    return (
-        f'<div class="mascot-wrap mascot-{variant}" title="Your OrderOS buddy">'
-        '<svg viewBox="0 0 100 90" width="82" height="74">'
+    config = states.get(state, states["idle"])
+
+    paws_svg = "" if config["skip_base_paws"] else BASE_PAWS
+
+    caption_html = (
+        f'<div class="cat-caption">{html.escape(config["caption"])}</div>'
+        if config["caption"]
+        else ""
+    )
+
+    svg = (
+        '<svg viewBox="0 0 100 100" width="88" height="88">'
         "<defs>"
-        '<linearGradient id="mascotGradient" x1="0" y1="0" x2="1" y2="1">'
-        '<stop offset="0%" stop-color="#64D2FF"/>'
-        '<stop offset="100%" stop-color="#BF5AF2"/>'
+        '<linearGradient id="catGradient" x1="0" y1="0" x2="1" y2="1">'
+        '<stop offset="0%" stop-color="#F6DCB8"/>'
+        '<stop offset="100%" stop-color="#E7AE81"/>'
+        "</linearGradient>"
+        '<linearGradient id="catEarInner" x1="0" y1="0" x2="0" y2="1">'
+        '<stop offset="0%" stop-color="#F2B8C6"/>'
+        '<stop offset="100%" stop-color="#E8869B"/>'
         "</linearGradient>"
         "</defs>"
-        '<ellipse cx="50" cy="50" rx="30" ry="26" fill="url(#mascotGradient)"/>'
-        f"{eyes_svg}"
-        '<path class="mascot-mouth" d="M42 56 Q 50 62 58 56" stroke="#06070A" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
-        '<path class="mascot-mouth-sleep" d="M45 57 q 5 2 10 0" stroke="#06070A" stroke-width="2" fill="none" stroke-linecap="round"/>'
-        f"{accessories[variant]}"
+        '<g class="cat-body-anim">'
+        f"{config['accessory']}"
+        '<path class="cat-tail" d="M74 78 Q 92 74 90 56 Q 89 47 80 49" stroke="url(#catGradient)" stroke-width="7" fill="none" stroke-linecap="round"/>'
+        '<ellipse cx="50" cy="76" rx="27" ry="21" fill="url(#catGradient)"/>'
+        f"{paws_svg}"
+        '<g class="cat-head-tilt">'
+        '<polygon class="cat-ear-l" points="30,30 24,10 42,24" fill="url(#catGradient)"/>'
+        '<polygon class="cat-ear-l" points="30,27 27,15 37,23" fill="url(#catEarInner)"/>'
+        '<polygon class="cat-ear-r" points="70,30 76,10 58,24" fill="url(#catGradient)"/>'
+        '<polygon class="cat-ear-r" points="70,27 73,15 63,23" fill="url(#catEarInner)"/>'
+        '<circle cx="50" cy="44" r="24" fill="url(#catGradient)"/>'
+        f"{WHISKERS}"
+        f"{config['eyes']}"
+        f"{NOSE}"
+        f"{config['mouth']}"
+        "</g>"
+        "</g>"
         "</svg>"
+    )
+
+    return (
+        f'<div class="cat-wrap {config["wrapper"]}" title="Your OrderOS cat coworker">'
+        f"{svg}"
+        f"{caption_html}"
         "</div>"
     )
 
@@ -1113,6 +1449,7 @@ with st.sidebar:
             st.session_state.agent_email = None
             st.session_state.last_search_results = None
             st.session_state.show_refund_confirm = False
+            st.session_state.mascot_state = None
 
             st.rerun()
 
@@ -1132,7 +1469,7 @@ if mode == "Agent":
 
         current_hour = get_ist_hour()
         greeting_headline, greeting_sub = get_greeting(current_hour)
-        mascot_html = render_mascot(current_hour)
+        mascot_html = render_cat_companion(get_mascot_state(current_hour))
 
         st.markdown(
             '<div class="oos-hero" style="display:flex; align-items:center; justify-content:space-between; gap:1.2rem; flex-wrap:wrap;">'
@@ -1179,12 +1516,20 @@ if mode == "Agent":
 
                     st.session_state.last_search_results = None
 
+                    st.session_state.mascot_state = "not_found"
+
                     st.error("No matching order found.")
 
                 else:
 
                     st.session_state.last_search_results = results
                     st.session_state.show_refund_confirm = False
+                    st.session_state.mascot_state = "found"
+
+                # Rerun so the cat companion (rendered above the search box)
+                # reflects the new state right away instead of waiting for
+                # the agent's next click.
+                st.rerun()
 
         # -----------------------------------------------------
         # RESULTS DISPLAY
@@ -1373,6 +1718,8 @@ if mode == "Agent":
             if refund_clicked:
 
                 st.session_state.show_refund_confirm = True
+                st.session_state.mascot_state = "refund"
+                st.rerun()
 
             # -------------------------------------------------
             # SPECIAL COUPON
@@ -1395,6 +1742,10 @@ if mode == "Agent":
                 st.session_state.show_coupon_form = (
                     not st.session_state.show_coupon_form
                 )
+                st.session_state.mascot_state = (
+                    "coupon" if st.session_state.show_coupon_form else None
+                )
+                st.rerun()
 
             if st.session_state.show_coupon_form:
 
@@ -1466,6 +1817,8 @@ if mode == "Agent":
                                 ):
                                     if form_key in st.session_state:
                                         del st.session_state[form_key]
+
+                                st.session_state.mascot_state = "coupon_success"
 
                                 st.success("Special coupon submitted successfully ✅")
                                 st.rerun()
@@ -1594,6 +1947,7 @@ if mode == "Agent":
                                 append_refunds_to_gsheet(refund_payload)
 
                             st.session_state.show_refund_confirm = False
+                            st.session_state.mascot_state = "refund_success"
 
                             st.success(
                                 "🎉 Refund submitted & Google Sheet updated successfully!"
