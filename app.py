@@ -766,67 +766,75 @@ def render_mascot(hour):
     else:
         variant = "night"
 
+    # NOTE: every fragment below is a SINGLE LINE with no embedded newlines.
+    # Streamlit's Markdown renderer treats a blank/whitespace-only line as
+    # "the raw HTML block just ended" — multi-line fragments substituted
+    # into each other were leaving blank lines behind, which caused
+    # everything after that point to fall through to a literal, escaped
+    # code block instead of being rendered as SVG. Flattening to one line
+    # per fragment removes that possibility entirely.
+
     if variant == "night":
-        eyes_svg = """
-            <path d="M38 44 q 4 4 8 0" stroke="#06070A" stroke-width="2.4" fill="none" stroke-linecap="round"/>
-            <path d="M54 44 q 4 4 8 0" stroke="#06070A" stroke-width="2.4" fill="none" stroke-linecap="round"/>
-        """
+        eyes_svg = (
+            '<path d="M38 44 q 4 4 8 0" stroke="#06070A" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
+            '<path d="M54 44 q 4 4 8 0" stroke="#06070A" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
+        )
     else:
-        eyes_svg = """
-            <circle cx="42" cy="44" r="3.2" fill="#06070A"/>
-            <circle cx="58" cy="44" r="3.2" fill="#06070A"/>
-        """
+        eyes_svg = (
+            '<circle cx="42" cy="44" r="3.2" fill="#06070A"/>'
+            '<circle cx="58" cy="44" r="3.2" fill="#06070A"/>'
+        )
 
     accessories = {
-        "morning": """
-            <g>
-              <rect x="45" y="57" width="14" height="11" rx="2" fill="#F5F5F7" opacity="0.92"/>
-              <rect x="45" y="57" width="14" height="4" rx="2" fill="#BF5AF2"/>
-              <path class="steam steam-1" d="M49 53 Q 51 49 49 45" stroke="#F5F5F7" stroke-width="2" fill="none" stroke-linecap="round"/>
-              <path class="steam steam-2" d="M55 53 Q 57 49 55 45" stroke="#F5F5F7" stroke-width="2" fill="none" stroke-linecap="round"/>
-            </g>
-        """,
-        "afternoon": """
-            <g>
-              <rect x="29" y="61" width="42" height="4" rx="2" fill="#0A84FF"/>
-              <rect x="33" y="47" width="34" height="14" rx="2" fill="#12141B" stroke="#64D2FF" stroke-width="1.5"/>
-              <circle class="type-dot" cx="50" cy="54" r="1.7" fill="#64D2FF"/>
-            </g>
-        """,
-        "evening": """
-            <g>
-              <path class="arm-stretch-l" d="M28 42 Q 17 32 21 21" stroke="#64D2FF" stroke-width="4" fill="none" stroke-linecap="round"/>
-              <path class="arm-stretch-r" d="M72 42 Q 83 32 79 21" stroke="#BF5AF2" stroke-width="4" fill="none" stroke-linecap="round"/>
-            </g>
-        """,
-        "night": """
-            <g>
-              <circle cx="74" cy="20" r="7" fill="#F5F5F7" opacity="0.85"/>
-              <circle cx="77.5" cy="17" r="6" fill="#06070A"/>
-              <text class="zzz zzz-1" x="66" y="36" font-size="9" fill="#A1A1A8">z</text>
-              <text class="zzz zzz-2" x="72" y="29" font-size="12" fill="#A1A1A8">z</text>
-              <text class="zzz zzz-3" x="79" y="21" font-size="15" fill="#A1A1A8">Z</text>
-            </g>
-        """,
+        "morning": (
+            "<g>"
+            '<rect x="45" y="57" width="14" height="11" rx="2" fill="#F5F5F7" opacity="0.92"/>'
+            '<rect x="45" y="57" width="14" height="4" rx="2" fill="#BF5AF2"/>'
+            '<path class="steam steam-1" d="M49 53 Q 51 49 49 45" stroke="#F5F5F7" stroke-width="2" fill="none" stroke-linecap="round"/>'
+            '<path class="steam steam-2" d="M55 53 Q 57 49 55 45" stroke="#F5F5F7" stroke-width="2" fill="none" stroke-linecap="round"/>'
+            "</g>"
+        ),
+        "afternoon": (
+            "<g>"
+            '<rect x="29" y="61" width="42" height="4" rx="2" fill="#0A84FF"/>'
+            '<rect x="33" y="47" width="34" height="14" rx="2" fill="#12141B" stroke="#64D2FF" stroke-width="1.5"/>'
+            '<circle class="type-dot" cx="50" cy="54" r="1.7" fill="#64D2FF"/>'
+            "</g>"
+        ),
+        "evening": (
+            "<g>"
+            '<path class="arm-stretch-l" d="M28 42 Q 17 32 21 21" stroke="#64D2FF" stroke-width="4" fill="none" stroke-linecap="round"/>'
+            '<path class="arm-stretch-r" d="M72 42 Q 83 32 79 21" stroke="#BF5AF2" stroke-width="4" fill="none" stroke-linecap="round"/>'
+            "</g>"
+        ),
+        "night": (
+            "<g>"
+            '<circle cx="74" cy="20" r="7" fill="#F5F5F7" opacity="0.85"/>'
+            '<circle cx="77.5" cy="17" r="6" fill="#06070A"/>'
+            '<text class="zzz zzz-1" x="66" y="36" font-size="9" fill="#A1A1A8">z</text>'
+            '<text class="zzz zzz-2" x="72" y="29" font-size="12" fill="#A1A1A8">z</text>'
+            '<text class="zzz zzz-3" x="79" y="21" font-size="15" fill="#A1A1A8">Z</text>'
+            "</g>"
+        ),
     }
 
-    return f"""
-    <div class="mascot-wrap mascot-{variant}" title="Your OrderOS buddy">
-      <svg viewBox="0 0 100 90" width="82" height="74">
-        <defs>
-          <linearGradient id="mascotGradient" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#64D2FF"/>
-            <stop offset="100%" stop-color="#BF5AF2"/>
-          </linearGradient>
-        </defs>
-        <ellipse cx="50" cy="50" rx="30" ry="26" fill="url(#mascotGradient)"/>
-        {eyes_svg}
-        <path class="mascot-mouth" d="M42 56 Q 50 62 58 56" stroke="#06070A" stroke-width="2.2" fill="none" stroke-linecap="round"/>
-        <path class="mascot-mouth-sleep" d="M45 57 q 5 2 10 0" stroke="#06070A" stroke-width="2" fill="none" stroke-linecap="round"/>
-        {accessories[variant]}
-      </svg>
-    </div>
-    """
+    return (
+        f'<div class="mascot-wrap mascot-{variant}" title="Your OrderOS buddy">'
+        '<svg viewBox="0 0 100 90" width="82" height="74">'
+        "<defs>"
+        '<linearGradient id="mascotGradient" x1="0" y1="0" x2="1" y2="1">'
+        '<stop offset="0%" stop-color="#64D2FF"/>'
+        '<stop offset="100%" stop-color="#BF5AF2"/>'
+        "</linearGradient>"
+        "</defs>"
+        '<ellipse cx="50" cy="50" rx="30" ry="26" fill="url(#mascotGradient)"/>'
+        f"{eyes_svg}"
+        '<path class="mascot-mouth" d="M42 56 Q 50 62 58 56" stroke="#06070A" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
+        '<path class="mascot-mouth-sleep" d="M45 57 q 5 2 10 0" stroke="#06070A" stroke-width="2" fill="none" stroke-linecap="round"/>'
+        f"{accessories[variant]}"
+        "</svg>"
+        "</div>"
+    )
 
 
 def status_badge(status):
@@ -1127,16 +1135,14 @@ if mode == "Agent":
         mascot_html = render_mascot(current_hour)
 
         st.markdown(
-            f"""
-            <div class="oos-hero" style="display:flex; align-items:center; justify-content:space-between; gap:1.2rem; flex-wrap:wrap;">
-                <div>
-                    <div class="oos-eyebrow"><span class="pulse-dot"></span>OrderOS · Agent Order Intelligence</div>
-                    <h1>{greeting_headline}</h1>
-                    <p class="oos-greeting-sub">{greeting_sub}</p>
-                </div>
-                {mascot_html}
-            </div>
-            """,
+            '<div class="oos-hero" style="display:flex; align-items:center; justify-content:space-between; gap:1.2rem; flex-wrap:wrap;">'
+            "<div>"
+            '<div class="oos-eyebrow"><span class="pulse-dot"></span>OrderOS · Agent Order Intelligence</div>'
+            f"<h1>{greeting_headline}</h1>"
+            f'<p class="oos-greeting-sub">{greeting_sub}</p>'
+            "</div>"
+            f"{mascot_html}"
+            "</div>",
             unsafe_allow_html=True,
         )
 
