@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 from database import (
     initialize_database,
@@ -639,222 +640,6 @@ st.markdown(
         to { opacity: 1; transform: translateY(0); }
     }
 
-    /* =====================================================
-       CAT COMPANION — original character (not any existing IP).
-       Floats fixed in the bottom-right corner so it stays visible on
-       scroll, instead of living inside the hero and disappearing once
-       the agent scrolls past the top of the page.
-    ===================================================== */
-
-    .cat-wrap {
-        display: flex;
-        flex-direction: column-reverse;
-        align-items: center;
-        gap: 0.3rem;
-        position: fixed;
-        right: 22px;
-        bottom: 22px;
-        z-index: 999;
-        cursor: pointer;
-        /* Only the drawn cat + caption are clickable/hoverable — the
-           rest of this fixed box lets clicks/scroll pass through to
-           whatever dashboard content sits underneath it. */
-        pointer-events: none;
-    }
-    .cat-wrap svg, .cat-wrap .cat-caption {
-        pointer-events: auto;
-    }
-    .cat-wrap::before {
-        content: "";
-        position: absolute;
-        inset: -14px -10px -8px -10px;
-        background: var(--glass);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        border: 1px solid var(--glass-border);
-        border-radius: 22px;
-        box-shadow: var(--shadow);
-        z-index: -1;
-        pointer-events: none;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    .cat-wrap:hover::before {
-        transform: scale(1.04);
-        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 2px 10px rgba(0, 0, 0, 0.4);
-    }
-    @media (max-width: 640px) {
-        .cat-wrap {
-            right: 12px;
-            bottom: 12px;
-        }
-        .cat-wrap svg {
-            width: 62px;
-            height: 62px;
-        }
-        .cat-wrap .cat-caption {
-            font-size: 0.64rem;
-            max-width: 120px;
-            white-space: normal;
-            text-align: center;
-        }
-    }
-    .cat-wrap .cat-body-anim {
-        animation: catBreathe 3.6s ease-in-out infinite;
-        transform-origin: 50% 85%;
-        transition: transform 0.2s ease;
-    }
-    .cat-wrap:hover .cat-body-anim {
-        animation-duration: 1.4s;
-    }
-    @keyframes catBreathe {
-        0%, 100% { transform: translateY(0) scaleY(1); }
-        50% { transform: translateY(-2px) scaleY(1.015); }
-    }
-
-    /* blink — every cat, every state, occasional blink loop */
-    @keyframes catBlink {
-        0%, 88%, 100% { transform: scaleY(1); }
-        92% { transform: scaleY(0.08); }
-        96% { transform: scaleY(1); }
-    }
-    .cat-eye { transform-origin: center; animation: catBlink 4.6s ease-in-out infinite; }
-    .cat-eye-r { animation-delay: 0.06s; }
-    .cat-wrap:hover .cat-eye { animation-duration: 1.8s; }
-
-    /* ears — small twitch loop */
-    @keyframes earTwitch {
-        0%, 82%, 100% { transform: rotate(0deg); }
-        86% { transform: rotate(-9deg); }
-        90% { transform: rotate(4deg); }
-    }
-    .cat-ear-l { transform-origin: 30px 26px; animation: earTwitch 5.2s ease-in-out infinite; }
-    .cat-ear-r { transform-origin: 70px 26px; animation: earTwitch 5.2s ease-in-out infinite; animation-delay: 0.5s; }
-    .cat-wrap:hover .cat-ear-l, .cat-wrap:hover .cat-ear-r { animation-duration: 1s; }
-
-    /* tail — gentle sway, faster + wider when happy */
-    @keyframes tailSway {
-        0%, 100% { transform: rotate(-6deg); }
-        50% { transform: rotate(10deg); }
-    }
-    .cat-tail { transform-origin: 82px 78px; animation: tailSway 2.8s ease-in-out infinite; }
-    .cat-happy .cat-tail { animation: tailSway 0.55s ease-in-out infinite; }
-    .cat-confused .cat-tail { animation-duration: 4.5s; }
-
-    /* head tilt — used for confused / curious states */
-    .cat-head-tilt { transform-origin: 50px 48px; }
-    .cat-confused .cat-head-tilt { animation: headTiltConfused 2.6s ease-in-out infinite; }
-    @keyframes headTiltConfused {
-        0%, 100% { transform: rotate(0deg); }
-        30% { transform: rotate(-11deg); }
-        60% { transform: rotate(-6deg); }
-    }
-    .cat-coupon .cat-head-tilt, .cat-refund .cat-head-tilt {
-        animation: headTiltCurious 3s ease-in-out infinite;
-    }
-    @keyframes headTiltCurious {
-        0%, 100% { transform: rotate(0deg); }
-        50% { transform: rotate(6deg); }
-    }
-
-    /* happy bounce — order found / refund success / coupon success */
-    @keyframes catBounce {
-        0%, 100% { transform: translateY(0); }
-        30% { transform: translateY(-7px); }
-        55% { transform: translateY(0); }
-        75% { transform: translateY(-2px); }
-    }
-    .cat-happy .cat-body-anim { animation: catBounce 0.85s ease-out 2; }
-
-    /* sigh — not found */
-    @keyframes catSigh {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(2px); }
-    }
-    .cat-confused .cat-body-anim { animation: catSigh 2.6s ease-in-out infinite; }
-
-    /* paw typing — searching state */
-    @keyframes pawTap {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-2.5px); }
-    }
-    .cat-paw-l { animation: pawTap 0.5s ease-in-out infinite; }
-    .cat-paw-r { animation: pawTap 0.5s ease-in-out infinite 0.25s; }
-
-    /* screen glow — searching state */
-    @keyframes screenGlow {
-        0%, 100% { opacity: 0.55; }
-        50% { opacity: 1; }
-    }
-    .cat-screen-glow { animation: screenGlow 1.4s ease-in-out infinite; }
-
-    /* steam — morning coffee */
-    @keyframes catSteamRise {
-        0% { opacity: 0; transform: translateY(0); }
-        50% { opacity: 1; }
-        100% { opacity: 0; transform: translateY(-9px); }
-    }
-    .cat-steam { animation: catSteamRise 2.4s ease-in-out infinite; }
-    .cat-steam-2 { animation-delay: 0.5s; }
-
-    /* stretch arms — evening */
-    @keyframes catStretch {
-        0%, 100% { transform: rotate(0deg); }
-        50% { transform: rotate(-10deg); }
-    }
-    .cat-stretch-l { transform-origin: 26px 60px; animation: catStretch 2.6s ease-in-out infinite; }
-    .cat-stretch-r { transform-origin: 74px 60px; animation: catStretch 2.6s ease-in-out infinite reverse; }
-
-    /* zzz — sleeping */
-    @keyframes catZzz {
-        0% { opacity: 0; transform: translateY(0) scale(0.8); }
-        35% { opacity: 1; }
-        100% { opacity: 0; transform: translateY(-15px) scale(1.05); }
-    }
-    .cat-zzz { animation: catZzz 3.2s ease-in-out infinite; }
-    .cat-zzz-2 { animation-delay: 0.7s; }
-    .cat-zzz-3 { animation-delay: 1.4s; }
-    .cat-sleeping .cat-body-anim { animation: catBreathe 4.4s ease-in-out infinite; }
-
-    /* pointing paw — refund state */
-    @keyframes pawPoint {
-        0%, 100% { transform: translateX(0); }
-        50% { transform: translateX(3px); }
-    }
-    .cat-paw-point { animation: pawPoint 1.6s ease-in-out infinite; }
-
-    /* sparkle burst — refund success / coupon success */
-    @keyframes sparklePop {
-        0% { opacity: 0; transform: scale(0.3); }
-        40% { opacity: 1; transform: scale(1.15); }
-        100% { opacity: 0; transform: scale(0.6); }
-    }
-    .cat-sparkle { animation: sparklePop 1.1s ease-out infinite; }
-    .cat-sparkle-2 { animation-delay: 0.25s; }
-    .cat-sparkle-3 { animation-delay: 0.5s; }
-
-    /* coupon card wiggle */
-    @keyframes couponWiggle {
-        0%, 100% { transform: rotate(-4deg); }
-        50% { transform: rotate(4deg); }
-    }
-    .cat-coupon-card { transform-origin: center; animation: couponWiggle 1.8s ease-in-out infinite; }
-
-    .cat-caption {
-        font-size: 0.72rem;
-        font-weight: 600;
-        color: var(--text-1);
-        text-align: center;
-        letter-spacing: 0.01em;
-        white-space: nowrap;
-        background: var(--glass-strong);
-        border: 1px solid var(--glass-border);
-        border-radius: 999px;
-        padding: 0.22rem 0.65rem;
-        backdrop-filter: blur(14px);
-        box-shadow: var(--shadow);
-        animation: fadeUp 0.3s ease both;
-    }
-
     </style>
     """,
     unsafe_allow_html=True,
@@ -933,294 +718,794 @@ def get_mascot_state(hour):
         return "sleeping"
 
 
-def render_cat_companion(state="idle"):
+# =========================================================
+# CAT COMPANION — draggable desktop-pet widget
+# =========================================================
+#
+# The cat's SVG/CSS/animation "look" is unchanged from the original
+# design (original character, not based on any existing IP). What
+# changed is HOW it lives on the page:
+#
+#   • It used to be a plain st.markdown() block, CSS-pinned to the
+#     bottom-right corner.
+#   • It is now rendered through st.components.v1.html(), inside its
+#     own normal-sized, self-contained widget lane near the top of the
+#     dashboard (NOT stretched to cover the full page — that trick was
+#     tried and dropped, since it mimics a clickjacking-style overlay
+#     pattern that browser/security software can flag or block). The
+#     cat is fully draggable within that lane using ordinary pointer
+#     events, no frame or viewport hacks involved.
+#
+# All dragging, cursor-tracking, petting/click/hold/shake detection,
+# and position persistence (sessionStorage) happen entirely inside
+# that component's own vanilla JS — nothing here talks back to Python,
+# so none of it triggers a Streamlit rerun or gets wiped by one. The
+# only thing Python controls is `context_state` (idle/morning/
+# searching/found/refund/etc.), which the search/refund/coupon flows
+# above already set via st.session_state.mascot_state exactly as
+# before.
+
+
+def render_cat_companion_widget(context_state="idle"):
     """
-    Renders OrderOS's little cat coworker — one consistent character
-    (original design, not based on any existing IP) whose pose, face and
-    tiny props change with `state` so it feels like it's reacting to the
-    dashboard: sipping coffee in the morning, "typing" while an agent
-    searches, celebrating a found order or a submitted refund, looking
-    confused when nothing matches, curious about a coupon, stretching in
-    the evening, or curled up asleep at night.
+    Renders the floating, draggable cat companion.
 
-    Recognised states: idle, morning, searching, found, not_found,
-    refund, refund_success, coupon, coupon_success, evening, sleeping.
-    Anything unrecognised safely falls back to "idle".
-
-    NOTE: every fragment below is a SINGLE LINE with no embedded newlines.
-    Streamlit's Markdown renderer treats a blank/whitespace-only line as
-    "the raw HTML block just ended" — multi-line fragments substituted
-    into each other leave blank lines behind, which breaks SVG rendering
-    into a literal, escaped code block. Flattening to one line per
-    fragment removes that possibility entirely.
+    context_state is one of the existing dashboard-driven poses
+    (idle, morning, searching, found, not_found, refund,
+    refund_success, coupon, coupon_success, evening, sleeping) — this
+    is unchanged Python-side logic. On top of it, the widget layers
+    purely client-side interaction states (hover, pet, excited,
+    annoyed, dizzy, sick) that temporarily override the pose when the
+    user drags, clicks, holds, or shakes the cat.
     """
 
-    # ---- face parts per state -------------------------------------------------
+    safe_state = html.escape(str(context_state or "idle"))
 
-    EYES_NORMAL = (
-        '<circle class="cat-eye cat-eye-l" cx="42" cy="42" r="3.4" fill="#2B1B12"/>'
-        '<circle class="cat-eye cat-eye-r" cx="58" cy="42" r="3.4" fill="#2B1B12"/>'
-    )
-    EYES_SLEEPY = (
-        '<path d="M37 42 Q 42 45 47 42" stroke="#2B1B12" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
-        '<path d="M53 42 Q 58 45 63 42" stroke="#2B1B12" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
-    )
-    EYES_FOCUSED = (
-        '<circle class="cat-eye cat-eye-l" cx="42" cy="43" r="2.9" fill="#2B1B12"/>'
-        '<circle class="cat-eye cat-eye-r" cx="58" cy="43" r="2.9" fill="#2B1B12"/>'
-    )
-    EYES_HAPPY = (
-        '<path d="M37 43 Q 42 37 47 43" stroke="#2B1B12" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
-        '<path d="M53 43 Q 58 37 63 43" stroke="#2B1B12" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
-    )
-    EYES_CONFUSED = (
-        '<circle cx="42" cy="43" r="3.2" fill="#2B1B12"/>'
-        '<path d="M53 41 Q 58 44 63 41.5" stroke="#2B1B12" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
-        '<path d="M36 36 Q 42 33 47 36" stroke="#2B1B12" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
-    )
-    EYES_CURIOUS = (
-        '<circle class="cat-eye cat-eye-l" cx="42" cy="42" r="4.1" fill="#2B1B12"/>'
-        '<circle class="cat-eye cat-eye-r" cx="58" cy="42" r="4.1" fill="#2B1B12"/>'
-        '<circle cx="43.2" cy="40.6" r="1" fill="#F5F5F7"/>'
-        '<circle cx="59.2" cy="40.6" r="1" fill="#F5F5F7"/>'
-    )
-    EYES_RELAXED = (
-        '<path d="M37 43 Q 42 46 47 43" stroke="#2B1B12" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
-        '<path d="M53 43 Q 58 46 63 43" stroke="#2B1B12" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
-    )
-    EYES_CLOSED = (
-        '<path d="M37 43 q 5 3 10 0" stroke="#2B1B12" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
-        '<path d="M53 43 q 5 3 10 0" stroke="#2B1B12" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
-    )
+    widget_html = f"""
+<div id="oos-cat-root" data-context-state="{safe_state}">
+  <div id="oos-cat-wrap">
+    <div class="cat-speech" id="oos-cat-speech"></div>
+    <svg viewBox="0 0 100 100" width="86" height="86" id="oos-cat-svg">
+      <defs>
+        <linearGradient id="catGradient" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#F6DCB8"/>
+          <stop offset="100%" stop-color="#E7AE81"/>
+        </linearGradient>
+        <linearGradient id="catEarInner" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#F2B8C6"/>
+          <stop offset="100%" stop-color="#E8869B"/>
+        </linearGradient>
+      </defs>
 
-    MOUTH_NEUTRAL = '<path d="M45 54 Q 50 58 55 54" stroke="#2B1B12" stroke-width="1.8" fill="none" stroke-linecap="round"/>'
-    MOUTH_YAWN = '<ellipse cx="50" cy="55" rx="3.2" ry="4" fill="#5C3A2E"/>'
-    MOUTH_FOCUSED = '<path d="M47 55 L 53 55" stroke="#2B1B12" stroke-width="1.8" fill="none" stroke-linecap="round"/>'
-    MOUTH_HAPPY = '<path d="M42 53 Q 50 61 58 53" stroke="#2B1B12" stroke-width="2" fill="none" stroke-linecap="round"/>'
-    MOUTH_CONFUSED = '<path d="M45 56 Q 50 53 55 56" stroke="#2B1B12" stroke-width="1.8" fill="none" stroke-linecap="round"/>'
-    MOUTH_SLEEP = '<path d="M46 55 Q 50 57 54 55" stroke="#2B1B12" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
+      <g id="oos-cat-body" class="cat-body-anim">
 
-    NOSE = '<path d="M48 49 L 52 49 L 50 51.5 Z" fill="#E8869B"/>'
-    WHISKERS = (
-        '<path d="M22 46 L 34 44" stroke="#2B1B12" stroke-width="1" opacity="0.4" stroke-linecap="round"/>'
-        '<path d="M22 51 L 34 49" stroke="#2B1B12" stroke-width="1" opacity="0.4" stroke-linecap="round"/>'
-        '<path d="M78 46 L 66 44" stroke="#2B1B12" stroke-width="1" opacity="0.4" stroke-linecap="round"/>'
-        '<path d="M78 51 L 66 49" stroke="#2B1B12" stroke-width="1" opacity="0.4" stroke-linecap="round"/>'
-    )
+        <g id="oos-acc-morning" class="acc">
+          <rect x="20" y="90" width="60" height="4" rx="2" fill="#75757D" opacity="0.35"/>
+          <rect x="62" y="76" width="12" height="10" rx="2" fill="#F5F5F7" opacity="0.94"/>
+          <rect x="62" y="76" width="12" height="3.5" rx="1.5" fill="#BF5AF2"/>
+          <path d="M74 79 q 4 1 3 5 q -1 3 -3 3" stroke="#F5F5F7" stroke-width="1.6" fill="none"/>
+          <path class="cat-steam cat-steam-1" d="M66 74 Q 68 70 66 66" stroke="#A1A1A8" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+          <path class="cat-steam cat-steam-2" d="M71 74 Q 73 70 71 66" stroke="#A1A1A8" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+        </g>
 
-    BASE_PAWS = (
-        '<ellipse cx="40" cy="88" rx="6" ry="4.5" fill="url(#catGradient)"/>'
-        '<ellipse cx="60" cy="88" rx="6" ry="4.5" fill="url(#catGradient)"/>'
-    )
+        <g id="oos-acc-searching" class="acc">
+          <rect x="20" y="90" width="60" height="4" rx="2" fill="#75757D" opacity="0.35"/>
+          <rect x="30" y="70" width="40" height="17" rx="2.5" fill="#12141B" stroke="#64D2FF" stroke-width="1.4"/>
+          <rect class="cat-screen-glow" x="33" y="73" width="34" height="11" rx="1.5" fill="#0A84FF" opacity="0.7"/>
+        </g>
 
-    # ---- accessory props per state ---------------------------------------------
+        <g id="oos-acc-sparkles" class="acc">
+          <path class="cat-sparkle cat-sparkle-1" d="M18 30 L 20 34 L 24 36 L 20 38 L 18 42 L 16 38 L 12 36 L 16 34 Z" fill="#64D2FF"/>
+          <path class="cat-sparkle cat-sparkle-2" d="M82 24 L 83.5 27 L 87 28.5 L 83.5 30 L 82 33 L 80.5 30 L 77 28.5 L 80.5 27 Z" fill="#BF5AF2"/>
+          <path class="cat-sparkle cat-sparkle-3" d="M84 52 L 85 54.5 L 87.5 55.5 L 85 56.5 L 84 59 L 83 56.5 L 80.5 55.5 L 83 54.5 Z" fill="#30D158"/>
+        </g>
 
-    ACC_MORNING = (
-        "<g>"
-        '<rect x="20" y="90" width="60" height="4" rx="2" fill="#75757D" opacity="0.35"/>'
-        '<rect x="62" y="76" width="12" height="10" rx="2" fill="#F5F5F7" opacity="0.94"/>'
-        '<rect x="62" y="76" width="12" height="3.5" rx="1.5" fill="#BF5AF2"/>'
-        '<path d="M74 79 q 4 1 3 5 q -1 3 -3 3" stroke="#F5F5F7" stroke-width="1.6" fill="none"/>'
-        '<path class="cat-steam cat-steam-1" d="M66 74 Q 68 70 66 66" stroke="#A1A1A8" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
-        '<path class="cat-steam cat-steam-2" d="M71 74 Q 73 70 71 66" stroke="#A1A1A8" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
-        "</g>"
-    )
+        <g id="oos-acc-hearts" class="acc">
+          <path class="cat-heart cat-heart-1" d="M16 34 c0-2.4 3.4-2.4 3.4 0 c0-2.4 3.4-2.4 3.4 0 c0 2.6-3.4 4.4-3.4 4.4 c0 0-3.4-1.8-3.4-4.4 Z" fill="#FF6482"/>
+          <path class="cat-heart cat-heart-2" d="M78 26 c0-2 2.8-2 2.8 0 c0-2 2.8-2 2.8 0 c0 2.2-2.8 3.7-2.8 3.7 c0 0-2.8-1.5-2.8-3.7 Z" fill="#FF6482"/>
+          <path class="cat-heart cat-heart-3" d="M82 50 c0-1.8 2.5-1.8 2.5 0 c0-1.8 2.5-1.8 2.5 0 c0 2-2.5 3.4-2.5 3.4 c0 0-2.5-1.4-2.5-3.4 Z" fill="#FF6482"/>
+        </g>
 
-    ACC_SEARCHING = (
-        "<g>"
-        '<rect x="20" y="90" width="60" height="4" rx="2" fill="#75757D" opacity="0.35"/>'
-        '<rect x="30" y="70" width="40" height="17" rx="2.5" fill="#12141B" stroke="#64D2FF" stroke-width="1.4"/>'
-        '<rect class="cat-screen-glow" x="33" y="73" width="34" height="11" rx="1.5" fill="#0A84FF" opacity="0.7"/>'
-        '<ellipse class="cat-paw-l" cx="38" cy="88" rx="6" ry="4.5" fill="url(#catGradient)"/>'
-        '<ellipse class="cat-paw-r" cx="62" cy="88" rx="6" ry="4.5" fill="url(#catGradient)"/>'
-        "</g>"
-    )
+        <g id="oos-acc-coupon" class="acc">
+          <g class="cat-coupon-card">
+            <rect x="60" y="72" width="18" height="12" rx="2" fill="#12141B" stroke="#FF9F0A" stroke-width="1.3" stroke-dasharray="2 1.5"/>
+            <circle cx="65" cy="78" r="1.6" fill="#FF9F0A"/>
+            <rect x="68" y="76" width="7" height="1.6" rx="0.8" fill="#A1A1A8"/>
+            <rect x="68" y="79" width="5" height="1.6" rx="0.8" fill="#A1A1A8"/>
+          </g>
+        </g>
 
-    ACC_SPARKLES = (
-        "<g>"
-        '<path class="cat-sparkle cat-sparkle-1" d="M18 30 L 20 34 L 24 36 L 20 38 L 18 42 L 16 38 L 12 36 L 16 34 Z" fill="#64D2FF"/>'
-        '<path class="cat-sparkle cat-sparkle-2" d="M82 24 L 83.5 27 L 87 28.5 L 83.5 30 L 82 33 L 80.5 30 L 77 28.5 L 80.5 27 Z" fill="#BF5AF2"/>'
-        '<path class="cat-sparkle cat-sparkle-3" d="M84 52 L 85 54.5 L 87.5 55.5 L 85 56.5 L 84 59 L 83 56.5 L 80.5 55.5 L 83 54.5 Z" fill="#30D158"/>'
-        "</g>"
-    )
+        <g id="oos-acc-evening" class="acc">
+          <path class="cat-stretch-l" d="M28 62 Q 15 55 17 42" stroke="url(#catGradient)" stroke-width="5" fill="none" stroke-linecap="round"/>
+          <path class="cat-stretch-r" d="M72 62 Q 85 55 83 42" stroke="url(#catGradient)" stroke-width="5" fill="none" stroke-linecap="round"/>
+        </g>
 
-    ACC_REFUND = (
-        '<g class="cat-paw-point">'
-        '<ellipse cx="72" cy="80" rx="6.5" ry="4.5" fill="url(#catGradient)" transform="rotate(-18 72 80)"/>'
-        '<ellipse cx="40" cy="88" rx="6" ry="4.5" fill="url(#catGradient)"/>'
-        "</g>"
-    )
+        <g id="oos-acc-sleeping" class="acc">
+          <ellipse cx="50" cy="93" rx="34" ry="7" fill="#64D2FF" opacity="0.14"/>
+          <path d="M20 90 Q 50 100 80 90 L 80 84 Q 50 92 20 84 Z" fill="#12141B" opacity="0.55"/>
+          <text class="cat-zzz cat-zzz-1" x="68" y="30" font-size="8" fill="#A1A1A8">z</text>
+          <text class="cat-zzz cat-zzz-2" x="74" y="23" font-size="11" fill="#A1A1A8">z</text>
+          <text class="cat-zzz cat-zzz-3" x="81" y="14" font-size="14" fill="#A1A1A8">Z</text>
+        </g>
 
-    ACC_COUPON = (
-        "<g>"
-        '<ellipse cx="40" cy="88" rx="6" ry="4.5" fill="url(#catGradient)"/>'
-        '<g class="cat-coupon-card">'
-        '<rect x="60" y="72" width="18" height="12" rx="2" fill="#12141B" stroke="#FF9F0A" stroke-width="1.3" stroke-dasharray="2 1.5"/>'
-        '<circle cx="65" cy="78" r="1.6" fill="#FF9F0A"/>'
-        '<rect x="68" y="76" width="7" height="1.6" rx="0.8" fill="#A1A1A8"/>'
-        '<rect x="68" y="79" width="5" height="1.6" rx="0.8" fill="#A1A1A8"/>'
-        "</g>"
-        "</g>"
-    )
+        <g id="oos-acc-sick" class="acc">
+          <text x="60" y="24" font-size="13">🤢</text>
+          <path class="cat-vomit-drip" d="M50 60 q -1 6 0 11" stroke="#8CD867" stroke-width="3" fill="none" stroke-linecap="round"/>
+        </g>
 
-    ACC_EVENING = (
-        "<g>"
-        '<path class="cat-stretch-l" d="M28 62 Q 15 55 17 42" stroke="url(#catGradient)" stroke-width="5" fill="none" stroke-linecap="round"/>'
-        '<path class="cat-stretch-r" d="M72 62 Q 85 55 83 42" stroke="url(#catGradient)" stroke-width="5" fill="none" stroke-linecap="round"/>'
-        "</g>"
-    )
+        <path id="oos-tail" d="M74 78 Q 92 74 90 56 Q 89 47 80 49" stroke="url(#catGradient)" stroke-width="7" fill="none" stroke-linecap="round"/>
+        <ellipse cx="50" cy="76" rx="27" ry="21" fill="url(#catGradient)"/>
 
-    ACC_SLEEPING = (
-        "<g>"
-        '<ellipse cx="50" cy="93" rx="34" ry="7" fill="#64D2FF" opacity="0.14"/>'
-        '<path d="M20 90 Q 50 100 80 90 L 80 84 Q 50 92 20 84 Z" fill="#12141B" opacity="0.55"/>'
-        '<text class="cat-zzz cat-zzz-1" x="68" y="30" font-size="8" fill="#A1A1A8">z</text>'
-        '<text class="cat-zzz cat-zzz-2" x="74" y="23" font-size="11" fill="#A1A1A8">z</text>'
-        '<text class="cat-zzz cat-zzz-3" x="81" y="14" font-size="14" fill="#A1A1A8">Z</text>'
-        "</g>"
-    )
+        <g id="oos-paws-base">
+          <ellipse class="oos-paw-l" cx="40" cy="88" rx="6" ry="4.5" fill="url(#catGradient)"/>
+          <ellipse class="oos-paw-r" cx="60" cy="88" rx="6" ry="4.5" fill="url(#catGradient)"/>
+        </g>
+        <g id="oos-paws-point" class="acc">
+          <ellipse cx="72" cy="80" rx="6.5" ry="4.5" fill="url(#catGradient)" transform="rotate(-18 72 80)"/>
+          <ellipse cx="40" cy="88" rx="6" ry="4.5" fill="url(#catGradient)"/>
+        </g>
 
-    # ---- per-state configuration -------------------------------------------
+        <g id="oos-head-tilt">
+          <polygon id="oos-ear-l" points="30,30 24,10 42,24" fill="url(#catGradient)"/>
+          <polygon points="30,27 27,15 37,23" fill="url(#catEarInner)"/>
+          <polygon id="oos-ear-r" points="70,30 76,10 58,24" fill="url(#catGradient)"/>
+          <polygon points="70,27 73,15 63,23" fill="url(#catEarInner)"/>
+          <circle cx="50" cy="44" r="24" fill="url(#catGradient)"/>
 
-    states = {
-        "idle": {
-            "wrapper": "cat-idle",
-            "eyes": EYES_NORMAL,
-            "mouth": MOUTH_NEUTRAL,
-            "accessory": "",
-            "skip_base_paws": False,
-            "caption": "",
-        },
-        "morning": {
-            "wrapper": "cat-morning",
-            "eyes": EYES_SLEEPY,
-            "mouth": MOUTH_YAWN,
-            "accessory": ACC_MORNING,
-            "skip_base_paws": True,
-            "caption": "Good morning 😴",
-        },
-        "searching": {
-            "wrapper": "cat-searching",
-            "eyes": EYES_FOCUSED,
-            "mouth": MOUTH_FOCUSED,
-            "accessory": ACC_SEARCHING,
-            "skip_base_paws": True,
-            "caption": "Checking...",
-        },
-        "found": {
-            "wrapper": "cat-happy",
-            "eyes": EYES_HAPPY,
-            "mouth": MOUTH_HAPPY,
-            "accessory": ACC_SPARKLES,
-            "skip_base_paws": False,
-            "caption": "Found it! 😎",
-        },
-        "not_found": {
-            "wrapper": "cat-confused",
-            "eyes": EYES_CONFUSED,
-            "mouth": MOUTH_CONFUSED,
-            "accessory": "",
-            "skip_base_paws": False,
-            "caption": "Hmm... nothing here.",
-        },
-        "refund": {
-            "wrapper": "cat-refund",
-            "eyes": EYES_CURIOUS,
-            "mouth": MOUTH_NEUTRAL,
-            "accessory": ACC_REFUND,
-            "skip_base_paws": True,
-            "caption": "Let's check this refund.",
-        },
-        "refund_success": {
-            "wrapper": "cat-happy",
-            "eyes": EYES_HAPPY,
-            "mouth": MOUTH_HAPPY,
-            "accessory": ACC_SPARKLES,
-            "skip_base_paws": False,
-            "caption": "Refund submitted! 🐱",
-        },
-        "coupon": {
-            "wrapper": "cat-coupon",
-            "eyes": EYES_CURIOUS,
-            "mouth": MOUTH_NEUTRAL,
-            "accessory": ACC_COUPON,
-            "skip_base_paws": True,
-            "caption": "Ooh, a coupon?",
-        },
-        "coupon_success": {
-            "wrapper": "cat-happy",
-            "eyes": EYES_HAPPY,
-            "mouth": MOUTH_HAPPY,
-            "accessory": ACC_SPARKLES,
-            "skip_base_paws": False,
-            "caption": "Coupon sent! 🎉",
-        },
-        "evening": {
-            "wrapper": "cat-evening",
-            "eyes": EYES_RELAXED,
-            "mouth": MOUTH_NEUTRAL,
-            "accessory": ACC_EVENING,
-            "skip_base_paws": False,
-            "caption": "Long day, huh?",
-        },
-        "sleeping": {
-            "wrapper": "cat-sleeping",
-            "eyes": EYES_CLOSED,
-            "mouth": MOUTH_SLEEP,
-            "accessory": ACC_SLEEPING,
-            "skip_base_paws": False,
-            "caption": "Zzz...",
-        },
-    }
+          <path d="M22 46 L 34 44" stroke="#2B1B12" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+          <path d="M22 51 L 34 49" stroke="#2B1B12" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+          <path d="M78 46 L 66 44" stroke="#2B1B12" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+          <path d="M78 51 L 66 49" stroke="#2B1B12" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
 
-    config = states.get(state, states["idle"])
+          <g id="oos-eye-l" class="oos-eye">
+            <circle class="cat-eye eye-normal" cx="0" cy="0" r="3.4" fill="#2B1B12"/>
+            <path class="eye-sleepy" d="M-5 0 Q 0 3 5 0" stroke="#2B1B12" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+            <path class="eye-happy" d="M-5 1 Q 0 -5 5 1" stroke="#2B1B12" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+            <path class="eye-closed" d="M-5 0 q 5 3 10 0" stroke="#2B1B12" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+            <g class="eye-spiral" stroke="#2B1B12" stroke-width="1.3" fill="none">
+              <path d="M0 0 m -4 0 a 4 4 0 1 1 8 0 a 2.6 2.6 0 1 1 -5.2 0 a 1.3 1.3 0 1 1 2.6 0"/>
+            </g>
+            <path class="eye-annoyed" d="M-5 -1 L 5 1" stroke="#2B1B12" stroke-width="2.2" stroke-linecap="round"/>
+          </g>
+          <g id="oos-eye-r" class="oos-eye">
+            <circle class="cat-eye eye-normal" cx="0" cy="0" r="3.4" fill="#2B1B12"/>
+            <path class="eye-sleepy" d="M-5 0 Q 0 3 5 0" stroke="#2B1B12" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+            <path class="eye-happy" d="M-5 1 Q 0 -5 5 1" stroke="#2B1B12" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+            <path class="eye-closed" d="M-5 0 q 5 3 10 0" stroke="#2B1B12" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+            <g class="eye-spiral" stroke="#2B1B12" stroke-width="1.3" fill="none">
+              <path d="M0 0 m -4 0 a 4 4 0 1 1 8 0 a 2.6 2.6 0 1 1 -5.2 0 a 1.3 1.3 0 1 1 2.6 0"/>
+            </g>
+            <path class="eye-annoyed" d="M-5 -1 L 5 1" stroke="#2B1B12" stroke-width="2.2" stroke-linecap="round"/>
+          </g>
 
-    paws_svg = "" if config["skip_base_paws"] else BASE_PAWS
+          <path d="M48 49 L 52 49 L 50 51.5 Z" fill="#E8869B"/>
 
-    caption_html = (
-        f'<div class="cat-caption">{html.escape(config["caption"])}</div>'
-        if config["caption"]
-        else ""
-    )
+          <g id="oos-mouth">
+            <path class="mouth-normal" d="M45 54 Q 50 58 55 54" stroke="#2B1B12" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+            <ellipse class="mouth-yawn" cx="50" cy="55" rx="3.2" ry="4" fill="#5C3A2E"/>
+            <path class="mouth-happy" d="M42 53 Q 50 61 58 53" stroke="#2B1B12" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <path class="mouth-confused" d="M45 56 Q 50 53 55 56" stroke="#2B1B12" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+            <ellipse class="mouth-sick" cx="50" cy="56" rx="4" ry="3" fill="#5C3A2E"/>
+          </g>
+        </g>
+      </g>
+    </svg>
+  </div>
+</div>
 
-    svg = (
-        '<svg viewBox="0 0 100 100" width="88" height="88">'
-        "<defs>"
-        '<linearGradient id="catGradient" x1="0" y1="0" x2="1" y2="1">'
-        '<stop offset="0%" stop-color="#F6DCB8"/>'
-        '<stop offset="100%" stop-color="#E7AE81"/>'
-        "</linearGradient>"
-        '<linearGradient id="catEarInner" x1="0" y1="0" x2="0" y2="1">'
-        '<stop offset="0%" stop-color="#F2B8C6"/>'
-        '<stop offset="100%" stop-color="#E8869B"/>'
-        "</linearGradient>"
-        "</defs>"
-        '<g class="cat-body-anim">'
-        f"{config['accessory']}"
-        '<path class="cat-tail" d="M74 78 Q 92 74 90 56 Q 89 47 80 49" stroke="url(#catGradient)" stroke-width="7" fill="none" stroke-linecap="round"/>'
-        '<ellipse cx="50" cy="76" rx="27" ry="21" fill="url(#catGradient)"/>'
-        f"{paws_svg}"
-        '<g class="cat-head-tilt">'
-        '<polygon class="cat-ear-l" points="30,30 24,10 42,24" fill="url(#catGradient)"/>'
-        '<polygon class="cat-ear-l" points="30,27 27,15 37,23" fill="url(#catEarInner)"/>'
-        '<polygon class="cat-ear-r" points="70,30 76,10 58,24" fill="url(#catGradient)"/>'
-        '<polygon class="cat-ear-r" points="70,27 73,15 63,23" fill="url(#catEarInner)"/>'
-        '<circle cx="50" cy="44" r="24" fill="url(#catGradient)"/>'
-        f"{WHISKERS}"
-        f"{config['eyes']}"
-        f"{NOSE}"
-        f"{config['mouth']}"
-        "</g>"
-        "</g>"
-        "</svg>"
-    )
+<style>
+  html, body {{ margin: 0; padding: 0; background: transparent; overflow: hidden; }}
 
-    return (
-        f'<div class="cat-wrap {config["wrapper"]}" title="Your OrderOS cat coworker">'
-        f"{svg}"
-        f"{caption_html}"
-        "</div>"
-    )
+  #oos-cat-root {{
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }}
+
+  #oos-cat-wrap {{
+    position: absolute;
+    /* default: right side of its lane, away from the search box */
+    left: 70%;
+    top: 30%;
+    width: 96px;
+    height: 108px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.3rem;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    z-index: 5;
+    will-change: transform, left, top;
+  }}
+  #oos-cat-wrap.dragging {{ cursor: grabbing; }}
+  #oos-cat-wrap::before {{
+    content: "";
+    position: absolute;
+    inset: -12px -8px -6px -8px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 22px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 2px 10px rgba(0, 0, 0, 0.35);
+    z-index: -1;
+    pointer-events: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }}
+  #oos-cat-wrap:hover::before, #oos-cat-wrap.hover::before {{
+    transform: scale(1.05);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 2px 10px rgba(0, 0, 0, 0.4);
+  }}
+
+  .cat-speech {{
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #F5F5F7;
+    text-align: center;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    background: rgba(255, 255, 255, 0.09);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    padding: 0.22rem 0.65rem;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+  }}
+  .cat-speech.visible {{ opacity: 1; transform: translateY(0); }}
+
+  #oos-cat-svg {{ display: block; }}
+
+  .cat-body-anim {{
+    animation: catBreathe 3.6s ease-in-out infinite;
+    transform-origin: 50% 85%;
+    transition: transform 0.15s ease;
+  }}
+  #oos-cat-wrap.hover .cat-body-anim,
+  #oos-cat-wrap.pet .cat-body-anim,
+  #oos-cat-wrap.excited .cat-body-anim {{ animation-duration: 1.4s; }}
+  #oos-cat-wrap.dragging .cat-body-anim {{ animation-play-state: paused; }}
+
+  @keyframes catBreathe {{
+    0%, 100% {{ transform: translateY(0) scaleY(1); }}
+    50% {{ transform: translateY(-2px) scaleY(1.015); }}
+  }}
+
+  /* mood layers — everything hidden by default, one shown per mood */
+  .acc, .eye-sleepy, .eye-happy, .eye-closed, .eye-spiral, .eye-annoyed,
+  .mouth-yawn, .mouth-happy, .mouth-confused, .mouth-sick {{ display: none; }}
+  .eye-normal, .mouth-normal {{ display: block; }}
+
+  #oos-eye-l {{ transform: translate(42px, 42px); }}
+  #oos-eye-r {{ transform: translate(58px, 42px); }}
+  .oos-eye {{ transition: transform 0.12s ease; }}
+
+  /* ---- mood -> visible parts ---- */
+  #oos-cat-wrap.mood-morning #oos-acc-morning,
+  #oos-cat-wrap.mood-searching #oos-acc-searching,
+  #oos-cat-wrap.mood-found #oos-acc-sparkles,
+  #oos-cat-wrap.mood-refund_success #oos-acc-sparkles,
+  #oos-cat-wrap.mood-coupon_success #oos-acc-sparkles,
+  #oos-cat-wrap.mood-excited #oos-acc-sparkles,
+  #oos-cat-wrap.mood-pet #oos-acc-hearts,
+  #oos-cat-wrap.mood-excited #oos-acc-hearts,
+  #oos-cat-wrap.mood-coupon #oos-acc-coupon,
+  #oos-cat-wrap.mood-evening #oos-acc-evening,
+  #oos-cat-wrap.mood-sleeping #oos-acc-sleeping,
+  #oos-cat-wrap.mood-sick #oos-acc-sick,
+  #oos-cat-wrap.mood-refund #oos-paws-point {{ display: block; }}
+
+  #oos-cat-wrap.mood-refund #oos-paws-base,
+  #oos-cat-wrap.mood-morning #oos-paws-base,
+  #oos-cat-wrap.mood-searching #oos-paws-base {{ display: none; }}
+
+  #oos-cat-wrap.mood-morning .eye-normal,
+  #oos-cat-wrap.mood-sleeping .eye-normal {{ display: none; }}
+  #oos-cat-wrap.mood-morning .eye-sleepy,
+  #oos-cat-wrap.mood-sleeping .eye-closed {{ display: block; }}
+
+  #oos-cat-wrap.mood-found .eye-normal,
+  #oos-cat-wrap.mood-refund_success .eye-normal,
+  #oos-cat-wrap.mood-coupon_success .eye-normal,
+  #oos-cat-wrap.mood-pet .eye-normal,
+  #oos-cat-wrap.mood-excited .eye-normal {{ display: none; }}
+  #oos-cat-wrap.mood-found .eye-happy,
+  #oos-cat-wrap.mood-refund_success .eye-happy,
+  #oos-cat-wrap.mood-coupon_success .eye-happy,
+  #oos-cat-wrap.mood-pet .eye-happy,
+  #oos-cat-wrap.mood-excited .eye-happy {{ display: block; }}
+
+  #oos-cat-wrap.mood-not_found .eye-normal,
+  #oos-cat-wrap.mood-annoyed .eye-normal {{ display: none; }}
+  #oos-cat-wrap.mood-not_found .eye-annoyed,
+  #oos-cat-wrap.mood-annoyed .eye-annoyed {{ display: block; }}
+
+  #oos-cat-wrap.mood-dizzy .eye-normal {{ display: none; }}
+  #oos-cat-wrap.mood-dizzy .eye-spiral {{ display: block; }}
+  #oos-cat-wrap.mood-dizzy .eye-spiral {{ animation: spin 1s linear infinite; transform-origin: center; }}
+  @keyframes spin {{ from {{ transform: rotate(0deg); }} to {{ transform: rotate(360deg); }} }}
+
+  #oos-cat-wrap.mood-morning .mouth-normal {{ display: none; }}
+  #oos-cat-wrap.mood-morning .mouth-yawn {{ display: block; }}
+  #oos-cat-wrap.mood-found .mouth-normal,
+  #oos-cat-wrap.mood-refund_success .mouth-normal,
+  #oos-cat-wrap.mood-coupon_success .mouth-normal,
+  #oos-cat-wrap.mood-pet .mouth-normal,
+  #oos-cat-wrap.mood-excited .mouth-normal {{ display: none; }}
+  #oos-cat-wrap.mood-found .mouth-happy,
+  #oos-cat-wrap.mood-refund_success .mouth-happy,
+  #oos-cat-wrap.mood-coupon_success .mouth-happy,
+  #oos-cat-wrap.mood-pet .mouth-happy,
+  #oos-cat-wrap.mood-excited .mouth-happy {{ display: block; }}
+  #oos-cat-wrap.mood-not_found .mouth-normal {{ display: none; }}
+  #oos-cat-wrap.mood-not_found .mouth-confused {{ display: block; }}
+  #oos-cat-wrap.mood-sick .mouth-normal {{ display: none; }}
+  #oos-cat-wrap.mood-sick .mouth-sick {{ display: block; }}
+
+  /* ---- ears ---- */
+  #oos-ear-l, #oos-ear-r {{ transform-origin: 30px 26px; transition: transform 0.15s ease; }}
+  #oos-cat-wrap.hover #oos-ear-l {{ transform: rotate(-8deg); }}
+  #oos-cat-wrap.hover #oos-ear-r {{ transform: rotate(8deg); }}
+  #oos-cat-wrap.pet #oos-ear-l {{ transform: rotate(-14deg); }}
+  #oos-cat-wrap.pet #oos-ear-r {{ transform: rotate(14deg); }}
+  #oos-cat-wrap.excited #oos-ear-l {{ animation: earFlap 0.35s ease-in-out infinite; }}
+  #oos-cat-wrap.excited #oos-ear-r {{ animation: earFlap 0.35s ease-in-out infinite reverse; }}
+  #oos-cat-wrap.annoyed #oos-ear-l {{ transform: rotate(16deg); }}
+  #oos-cat-wrap.annoyed #oos-ear-r {{ transform: rotate(-16deg); }}
+  @keyframes earFlap {{
+    0%, 100% {{ transform: rotate(-6deg); }}
+    50% {{ transform: rotate(10deg); }}
+  }}
+
+  /* ---- head tilt (cursor tracking + moods) ---- */
+  #oos-head-tilt {{ transform-origin: 50px 48px; transition: transform 0.18s ease; }}
+  #oos-cat-wrap.mood-not_found #oos-head-tilt,
+  #oos-cat-wrap.annoyed #oos-head-tilt {{ animation: headTiltConfused 2.6s ease-in-out infinite; }}
+  @keyframes headTiltConfused {{
+    0%, 100% {{ transform: rotate(0deg); }}
+    30% {{ transform: rotate(-11deg); }}
+    60% {{ transform: rotate(-6deg); }}
+  }}
+  #oos-cat-wrap.mood-coupon #oos-head-tilt,
+  #oos-cat-wrap.mood-refund #oos-head-tilt {{ animation: headTiltCurious 3s ease-in-out infinite; }}
+  @keyframes headTiltCurious {{
+    0%, 100% {{ transform: rotate(0deg); }}
+    50% {{ transform: rotate(6deg); }}
+  }}
+
+  /* ---- tail ---- */
+  #oos-tail {{ transform-origin: 82px 78px; animation: tailSway 2.8s ease-in-out infinite; transition: animation-duration 0.15s ease; }}
+  #oos-cat-wrap.pet #oos-tail, #oos-cat-wrap.excited #oos-tail {{ animation: tailSway 0.5s ease-in-out infinite; }}
+  #oos-cat-wrap.annoyed #oos-tail {{ animation: tailTwitch 0.5s ease-in-out infinite; }}
+  #oos-cat-wrap.mood-not_found #oos-tail {{ animation-duration: 4.5s; }}
+  @keyframes tailSway {{
+    0%, 100% {{ transform: rotate(-6deg); }}
+    50% {{ transform: rotate(10deg); }}
+  }}
+  @keyframes tailTwitch {{
+    0%, 100% {{ transform: rotate(-3deg); }}
+    50% {{ transform: rotate(3deg); }}
+  }}
+
+  /* ---- bounce / squish reactions ---- */
+  @keyframes catBounce {{
+    0%, 100% {{ transform: translateY(0); }}
+    30% {{ transform: translateY(-7px); }}
+    55% {{ transform: translateY(0); }}
+    75% {{ transform: translateY(-2px); }}
+  }}
+  #oos-cat-wrap.mood-found .cat-body-anim,
+  #oos-cat-wrap.mood-refund_success .cat-body-anim,
+  #oos-cat-wrap.mood-coupon_success .cat-body-anim,
+  #oos-cat-wrap.pet .cat-body-anim {{ animation: catBounce 0.85s ease-out 2; }}
+  #oos-cat-wrap.excited .cat-body-anim {{ animation: catBounce 0.4s ease-out infinite; }}
+
+  #oos-cat-wrap.mood-not_found .cat-body-anim {{
+    animation: catSigh 2.6s ease-in-out infinite;
+  }}
+  @keyframes catSigh {{
+    0%, 100% {{ transform: translateY(0); }}
+    50% {{ transform: translateY(2px); }}
+  }}
+
+  #oos-cat-wrap.mood-searching .oos-paw-l {{ animation: pawTap 0.5s ease-in-out infinite; }}
+  #oos-cat-wrap.mood-searching .oos-paw-r {{ animation: pawTap 0.5s ease-in-out infinite 0.25s; }}
+  @keyframes pawTap {{
+    0%, 100% {{ transform: translateY(0); }}
+    50% {{ transform: translateY(-2.5px); }}
+  }}
+
+  .cat-screen-glow {{ animation: screenGlow 1.4s ease-in-out infinite; }}
+  @keyframes screenGlow {{ 0%, 100% {{ opacity: 0.55; }} 50% {{ opacity: 1; }} }}
+
+  .cat-steam {{ animation: catSteamRise 2.4s ease-in-out infinite; }}
+  .cat-steam-2 {{ animation-delay: 0.5s; }}
+  @keyframes catSteamRise {{
+    0% {{ opacity: 0; transform: translateY(0); }}
+    50% {{ opacity: 1; }}
+    100% {{ opacity: 0; transform: translateY(-9px); }}
+  }}
+
+  .cat-stretch-l {{ transform-origin: 26px 60px; animation: catStretch 2.6s ease-in-out infinite; }}
+  .cat-stretch-r {{ transform-origin: 74px 60px; animation: catStretch 2.6s ease-in-out infinite reverse; }}
+  @keyframes catStretch {{
+    0%, 100% {{ transform: rotate(0deg); }}
+    50% {{ transform: rotate(-10deg); }}
+  }}
+
+  .cat-zzz {{ animation: catZzz 3.2s ease-in-out infinite; }}
+  .cat-zzz-2 {{ animation-delay: 0.7s; }}
+  .cat-zzz-3 {{ animation-delay: 1.4s; }}
+  @keyframes catZzz {{
+    0% {{ opacity: 0; transform: translateY(0) scale(0.8); }}
+    35% {{ opacity: 1; }}
+    100% {{ opacity: 0; transform: translateY(-15px) scale(1.05); }}
+  }}
+  #oos-cat-wrap.mood-sleeping .cat-body-anim {{ animation: catBreathe 4.4s ease-in-out infinite; }}
+
+  .cat-sparkle {{ animation: sparklePop 1.1s ease-out infinite; }}
+  .cat-sparkle-2 {{ animation-delay: 0.25s; }}
+  .cat-sparkle-3 {{ animation-delay: 0.5s; }}
+  @keyframes sparklePop {{
+    0% {{ opacity: 0; transform: scale(0.3); }}
+    40% {{ opacity: 1; transform: scale(1.15); }}
+    100% {{ opacity: 0; transform: scale(0.6); }}
+  }}
+
+  .cat-heart {{ animation: heartFloat 1.2s ease-out infinite; transform-origin: center; }}
+  .cat-heart-2 {{ animation-delay: 0.3s; }}
+  .cat-heart-3 {{ animation-delay: 0.6s; }}
+  @keyframes heartFloat {{
+    0% {{ opacity: 0; transform: translateY(0) scale(0.5); }}
+    35% {{ opacity: 1; transform: scale(1); }}
+    100% {{ opacity: 0; transform: translateY(-10px) scale(0.8); }}
+  }}
+
+  .cat-coupon-card {{ transform-origin: center; animation: couponWiggle 1.8s ease-in-out infinite; }}
+  @keyframes couponWiggle {{
+    0%, 100% {{ transform: rotate(-4deg); }}
+    50% {{ transform: rotate(4deg); }}
+  }}
+
+  /* ---- dizzy / sick sequence ---- */
+  #oos-cat-wrap.mood-dizzy .cat-body-anim {{ animation: catWobble 0.35s ease-in-out infinite; }}
+  @keyframes catWobble {{
+    0%, 100% {{ transform: rotate(-6deg) translateY(0); }}
+    50% {{ transform: rotate(6deg) translateY(-2px); }}
+  }}
+  #oos-cat-wrap.mood-sick .cat-body-anim {{ animation: catQueasy 0.9s ease-in-out infinite; }}
+  @keyframes catQueasy {{
+    0%, 100% {{ transform: translateY(0); }}
+    50% {{ transform: translateY(3px); }}
+  }}
+  .cat-vomit-drip {{ opacity: 0; animation: vomitDrip 0.9s ease-in-out infinite; }}
+  #oos-cat-wrap.mood-sick .cat-vomit-drip {{ opacity: 1; }}
+  @keyframes vomitDrip {{
+    0%, 100% {{ opacity: 0.2; transform: translateY(0); }}
+    50% {{ opacity: 1; transform: translateY(3px); }}
+  }}
+
+  /* ---- grab squish ---- */
+  #oos-cat-wrap.dragging #oos-cat-body {{ transform: scale(1.06, 0.94); }}
+  #oos-cat-body {{ transition: transform 0.12s ease; transform-origin: 50% 85%; }}
+</style>
+
+<script>
+(function () {{
+  // Self-contained widget: everything lives inside this component's own
+  // iframe box (no frame-escaping, no full-viewport overlay, no z-index
+  // tricks on the frame itself) — safe under strict browser/security
+  // policies, and still fully draggable within its own lane.
+
+  var root = document.getElementById('oos-cat-root');
+  var wrap = document.getElementById('oos-cat-wrap');
+  var speech = document.getElementById('oos-cat-speech');
+  var headTilt = document.getElementById('oos-head-tilt');
+  var eyeL = document.getElementById('oos-eye-l');
+  var eyeR = document.getElementById('oos-eye-r');
+  var contextState = root.getAttribute('data-context-state') || 'idle';
+
+  var STORAGE_KEY = 'oos_cat_position_v1';
+  var interactionState = null;      // hover | pet | excited | annoyed | dizzy | sick
+  var interactionTimer = null;
+
+  function applyMood() {{
+    var mood = interactionState || contextState;
+    wrap.className = wrap.className
+      .split(' ')
+      .filter(function (c) {{ return c.indexOf('mood-') !== 0; }})
+      .join(' ');
+    wrap.classList.add('mood-' + mood);
+  }}
+  applyMood();
+
+  function say(text, ms) {{
+    if (!text) {{
+      speech.classList.remove('visible');
+      return;
+    }}
+    speech.textContent = text;
+    speech.classList.add('visible');
+    window.clearTimeout(speech._t);
+    speech._t = window.setTimeout(function () {{
+      speech.classList.remove('visible');
+    }}, ms || 1600);
+  }}
+
+  function setInteraction(state, durationMs, caption) {{
+    interactionState = state;
+    applyMood();
+    if (caption) say(caption, Math.min(durationMs || 1500, 1800));
+    window.clearTimeout(interactionTimer);
+    if (durationMs) {{
+      interactionTimer = window.setTimeout(function () {{
+        interactionState = null;
+        applyMood();
+      }}, durationMs);
+    }}
+  }}
+
+  // ---- 1. position: restore from sessionStorage, else default
+  //         right side of this widget's own lane, away from the
+  //         search box. Bounds are this component's own box (root),
+  //         not the browser viewport — the cat never leaves its lane.
+  function laneSize() {{
+    return {{
+      w: root.clientWidth || 420,
+      h: root.clientHeight || 220,
+    }};
+  }}
+
+  function clampPos(x, y) {{
+    var lane = laneSize();
+    var boxW = 110, boxH = 130;
+    x = Math.max(4, Math.min(x, lane.w - boxW));
+    y = Math.max(4, Math.min(y, lane.h - boxH));
+    return {{ x: x, y: y }};
+  }}
+
+  function loadPosition() {{
+    try {{
+      var raw = window.sessionStorage.getItem(STORAGE_KEY);
+      if (raw) {{
+        var p = JSON.parse(raw);
+        if (typeof p.x === 'number' && typeof p.y === 'number') return p;
+      }}
+    }} catch (e) {{}}
+    return null;
+  }}
+
+  function savePosition(x, y) {{
+    try {{
+      window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify({{ x: x, y: y }}));
+    }} catch (e) {{}}
+  }}
+
+  var saved = loadPosition();
+  var pos;
+  if (saved) {{
+    pos = clampPos(saved.x, saved.y);
+  }} else {{
+    var lane = laneSize();
+    pos = clampPos(lane.w * 0.72, lane.h * 0.28);
+  }}
+  wrap.style.left = pos.x + 'px';
+  wrap.style.top = pos.y + 'px';
+
+  // ---- 2. dragging (pointer events cover mouse + touch + pen) ----
+  var dragging = false;
+  var dragOffsetX = 0, dragOffsetY = 0;
+  var pointerDownAt = 0;
+  var pointerDownX = 0, pointerDownY = 0;
+  var lastMoveX = 0, lastMoveY = 0, lastMoveT = 0;
+  var velX = 0, velY = 0;
+  var moved = false;
+  var clickCount = 0;
+  var clickTimer = null;
+  var longPressTimer = null;
+
+  // shake detection: rolling buffer of recent pointer travel distance
+  var shakeSamples = [];
+  var lastShakeCheck = 0;
+
+  function recordShakeSample(dx, dy, t) {{
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    shakeSamples.push({{ d: dist, t: t }});
+    var cutoff = t - 900;
+    while (shakeSamples.length && shakeSamples[0].t < cutoff) shakeSamples.shift();
+    var total = 0;
+    for (var i = 0; i < shakeSamples.length; i++) total += shakeSamples[i].d;
+    if (total > 900 && interactionState !== 'dizzy' && interactionState !== 'sick') {{
+      triggerShake();
+      shakeSamples = [];
+    }}
+  }}
+
+  function triggerShake() {{
+    window.clearTimeout(interactionTimer);
+    setInteraction('dizzy', 900, "Whoa, dizzy! 🌀");
+    window.setTimeout(function () {{
+      setInteraction('sick', 1400, "🤢");
+      window.setTimeout(function () {{
+        interactionState = null;
+        applyMood();
+      }}, 1400);
+    }}, 900);
+  }}
+
+  wrap.addEventListener('pointerdown', function (e) {{
+    dragging = true;
+    moved = false;
+    wrap.classList.add('dragging');
+    try {{ wrap.setPointerCapture(e.pointerId); }} catch (err) {{}}
+
+    var rect = wrap.getBoundingClientRect();
+    dragOffsetX = e.clientX - rect.left;
+    dragOffsetY = e.clientY - rect.top;
+
+    pointerDownAt = Date.now();
+    pointerDownX = e.clientX;
+    pointerDownY = e.clientY;
+    lastMoveX = e.clientX;
+    lastMoveY = e.clientY;
+    lastMoveT = pointerDownAt;
+    velX = 0; velY = 0;
+
+    // long-press -> annoyed, unless the user starts actually dragging
+    window.clearTimeout(longPressTimer);
+    longPressTimer = window.setTimeout(function () {{
+      if (dragging && !moved) {{
+        setInteraction('annoyed', 1300, "Okay okay, let go 😑");
+      }}
+    }}, 650);
+
+    e.preventDefault();
+  }});
+
+  window.addEventListener('pointermove', function (e) {{
+    if (!dragging) {{
+      // ---- cursor-proximity awareness (hover/look-at, no body follow) ----
+      var rect = wrap.getBoundingClientRect();
+      var cx = rect.left + rect.width / 2;
+      var cy = rect.top + rect.height / 2 - 20;
+      var dx = e.clientX - cx;
+      var dy = e.clientY - cy;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      var NEAR = 140;
+
+      if (dist < NEAR) {{
+        if (!wrap.classList.contains('hover') && !interactionState) {{
+          wrap.classList.add('hover');
+        }}
+        var angle = Math.atan2(dy, dx);
+        var pupilRange = 1.6;
+        var ex = Math.max(-pupilRange, Math.min(pupilRange, Math.cos(angle) * pupilRange));
+        var ey = Math.max(-pupilRange, Math.min(pupilRange, Math.sin(angle) * pupilRange));
+        eyeL.style.transform = 'translate(' + (42 + ex) + 'px,' + (42 + ey) + 'px)';
+        eyeR.style.transform = 'translate(' + (58 + ex) + 'px,' + (42 + ey) + 'px)';
+        var tiltAngle = Math.max(-8, Math.min(8, dx / 40));
+        headTilt.style.transform = 'rotate(' + tiltAngle + 'deg)';
+      }} else {{
+        if (wrap.classList.contains('hover')) wrap.classList.remove('hover');
+        eyeL.style.transform = 'translate(42px,42px)';
+        eyeR.style.transform = 'translate(58px,42px)';
+        headTilt.style.transform = 'rotate(0deg)';
+      }}
+      return;
+    }}
+
+    var now = Date.now();
+    var newX = e.clientX - dragOffsetX;
+    var newY = e.clientY - dragOffsetY;
+    var clamped = clampPos(newX, newY);
+    wrap.style.left = clamped.x + 'px';
+    wrap.style.top = clamped.y + 'px';
+
+    var dt = Math.max(1, now - lastMoveT);
+    velX = (e.clientX - lastMoveX) / dt;
+    velY = (e.clientY - lastMoveY) / dt;
+
+    recordShakeSample(e.clientX - lastMoveX, e.clientY - lastMoveY, now);
+
+    lastMoveX = e.clientX;
+    lastMoveY = e.clientY;
+    lastMoveT = now;
+
+    if (Math.abs(e.clientX - pointerDownX) > 4 || Math.abs(e.clientY - pointerDownY) > 4) {{
+      moved = true;
+      window.clearTimeout(longPressTimer);
+    }}
+
+    e.preventDefault();
+  }}, {{ passive: false }});
+
+  window.addEventListener('pointerup', function (e) {{
+    if (!dragging) return;
+    dragging = false;
+    wrap.classList.remove('dragging');
+    window.clearTimeout(longPressTimer);
+
+    var rect = wrap.getBoundingClientRect();
+    var startX = rect.left, startY = rect.top;
+
+    // gentle throw: a little residual travel based on release velocity,
+    // then settle with a small bounce — kept subtle and always clamped.
+    var throwX = Math.max(-60, Math.min(60, velX * 90));
+    var throwY = Math.max(-60, Math.min(60, velY * 90));
+    var landed = clampPos(startX + throwX, startY + throwY);
+
+    if (Math.abs(throwX) > 4 || Math.abs(throwY) > 4) {{
+      wrap.style.transition = 'left 0.28s cubic-bezier(.2,.8,.3,1.1), top 0.28s cubic-bezier(.2,.8,.3,1.1)';
+      wrap.style.left = landed.x + 'px';
+      wrap.style.top = landed.y + 'px';
+      window.setTimeout(function () {{ wrap.style.transition = ''; }}, 300);
+    }}
+
+    savePosition(landed.x, landed.y);
+
+    if (!moved) {{
+      // a genuine click/tap (no drag) -> pet / excited logic below
+      handleClick();
+    }}
+
+    e.preventDefault();
+  }});
+
+  wrap.addEventListener('lostpointercapture', function () {{
+    if (dragging) {{
+      dragging = false;
+      wrap.classList.remove('dragging');
+    }}
+  }});
+
+  // ---- 3. click semantics: single = pet, rapid repeats = excited,
+  //         double-click = extra happy burst.
+  function handleClick() {{
+    clickCount += 1;
+    window.clearTimeout(clickTimer);
+    clickTimer = window.setTimeout(function () {{
+      if (clickCount >= 3) {{
+        setInteraction('excited', 1600, "Wheee! 🎉");
+      }} else {{
+        var captions = ["Purrrr 🐱", "That feels nice!", "Mrow~"];
+        var caption = captions[Math.floor(Math.random() * captions.length)];
+        setInteraction('pet', 1500, caption);
+      }}
+      clickCount = 0;
+    }}, 260);
+  }}
+
+  wrap.addEventListener('dblclick', function (e) {{
+    window.clearTimeout(clickTimer);
+    clickCount = 0;
+    setInteraction('excited', 1800, "Best day ever! 💕");
+    e.preventDefault();
+  }});
+
+  // ---- 4. keep the cat on-screen if the window is resized ----
+  window.addEventListener('resize', function () {{
+    var rect = wrap.getBoundingClientRect();
+    var clamped = clampPos(rect.left, rect.top);
+    wrap.style.left = clamped.x + 'px';
+    wrap.style.top = clamped.y + 'px';
+    savePosition(clamped.x, clamped.y);
+  }});
+}})();
+</script>
+"""
+
+    # A real, visible box (not 0x0) — width is left unset so Streamlit
+    # stretches it to the full column width, giving the cat a wide lane
+    # to roam and drag around in without needing to escape its iframe.
+    components.html(widget_html, height=230)
 
 
 def status_badge(status):
@@ -1519,7 +1804,6 @@ if mode == "Agent":
 
         current_hour = get_ist_hour()
         greeting_headline, greeting_sub = get_greeting(current_hour)
-        mascot_html = render_cat_companion(get_mascot_state(current_hour))
 
         st.markdown(
             '<div class="oos-hero">'
@@ -1530,11 +1814,12 @@ if mode == "Agent":
             unsafe_allow_html=True,
         )
 
-        # The cat companion is CSS `position: fixed`, so it renders as a
-        # floating widget pinned to the bottom-right of the viewport and
-        # stays visible no matter how far down the dashboard the agent
-        # scrolls — it no longer disappears once the hero scrolls away.
-        st.markdown(mascot_html, unsafe_allow_html=True)
+        # The cat companion is a floating, draggable desktop-pet style
+        # component (see render_cat_companion_widget near the top of this
+        # file). It renders itself via a full-viewport overlay and keeps
+        # its own position/interaction state client-side, so it survives
+        # Streamlit reruns without any Python-side tracking.
+        render_cat_companion_widget(get_mascot_state(current_hour))
 
         # -----------------------------------------------------
         # UNIVERSAL SEARCH
