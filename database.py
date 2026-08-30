@@ -2,7 +2,9 @@ import os
 
 import pandas as pd
 import psycopg
+import streamlit as st
 from dotenv import load_dotenv
+from psycopg_pool import ConnectionPool
 
 # =========================================================
 # ENVIRONMENT
@@ -26,9 +28,52 @@ def get_database_url():
     return database_url
 
 
-def get_connection():
+@st.cache_resource(show_spinner=False)
+def _get_pool():
+    """
+    A small connection pool, cached for the lifetime of the app process
+    via st.cache_resource -- created once, shared by every user session
+    instead of opening a brand new TCP/TLS/auth handshake (and a trip
+    through the Supabase Pooler) on every single query.
 
-    return psycopg.connect(get_database_url(), prepare_threshold=None)
+    A *pool* (rather than one shared raw connection) is used so this
+    stays safe when multiple agents use the dashboard at the same
+    time -- each concurrent request is handed its own connection
+    instead of contending over a single shared one.
+
+    prepare_threshold=None is applied to every pooled connection --
+    this is the existing Supabase Pooler fix (avoids
+    "DuplicatePreparedStatement: prepared statement already exists"),
+    unchanged from before.
+    """
+
+    return ConnectionPool(
+        get_database_url(),
+        min_size=1,
+        max_size=5,
+        kwargs={"prepare_threshold": None},
+        open=True,
+    )
+
+
+def get_connection():
+    """
+    Returns a context manager for a pooled connection:
+
+        with get_connection() as conn:
+            ...
+
+    On exit, the transaction is committed (or rolled back on
+    exception) and the connection is returned to the pool for reuse --
+    it is NOT closed, unlike a plain psycopg.connect(...) used the
+    same way (psycopg 3 closes a bare connection on `with` exit, which
+    is why pooling -- not just caching one connection object -- is
+    required to actually get reuse). Every call site in this file
+    already uses `with get_connection() as conn:`, so nothing else
+    needed to change at the call sites.
+    """
+
+    return _get_pool().connection()
 
 
 # =========================================================
@@ -36,7 +81,14 @@ def get_connection():
 # =========================================================
 
 
+@st.cache_resource(show_spinner=False)
 def initialize_database():
+    """
+    Verifies the required tables exist. Cached with st.cache_resource
+    so this schema check runs only once per app process instead of on
+    every single Streamlit rerun (previously this fired on every
+    button click / checkbox toggle across the whole app).
+    """
 
     with get_connection() as conn:
 
@@ -211,6 +263,18 @@ def replace_orders(df, file_name):
 
         conn.commit()
 
+    # =====================================================
+    # INVALIDATE CACHED ADMIN STATS
+    # =====================================================
+    # get_order_count() and get_last_upload() are cached below (see
+    # their @st.cache_data decorators) so the Admin panel doesn't hit
+    # the database on every rerun. Clearing them here means the
+    # Control Center reflects this upload immediately instead of
+    # waiting out the cache TTL.
+
+    get_order_count.clear()
+    get_last_upload.clear()
+
 
 # =========================================================
 # UNIVERSAL SEARCH
@@ -283,7 +347,14 @@ def search_orders(search_value):
 # =========================================================
 
 
+@st.cache_data(ttl=30, show_spinner=False)
 def get_order_count():
+    """
+    Cached for 30 seconds so the Admin panel doesn't re-hit the
+    database on every rerun (every checkbox toggle, etc). Explicitly
+    cleared by replace_orders() right after a successful upload, so
+    the count is never stale after the action that actually changes it.
+    """
 
     query = """
 
@@ -308,7 +379,13 @@ def get_order_count():
 # =========================================================
 
 
+@st.cache_data(ttl=30, show_spinner=False)
 def get_last_upload():
+    """
+    Cached for 30 seconds for the same reason as get_order_count().
+    Explicitly cleared by replace_orders() right after a successful
+    upload.
+    """
 
     query = """
 
