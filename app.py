@@ -1508,6 +1508,27 @@ def render_cat_companion_widget(context_state="idle"):
     components.html(widget_html, height=230)
 
 
+def resolve_effective_status(order_status, awb):
+    """
+    Some orders in the source data leave `order_status` blank until the
+    order is actually picked up by the courier, and instead carry an
+    interim status word (e.g. "ACCEPTED", "PENDING PICKUP", "RTO") in
+    the `awb` field until a real AWB tracking number is assigned.
+
+    This resolves whichever value should actually be treated as the
+    order's current status: the real order_status when it's present,
+    otherwise whatever text is currently sitting in the awb field.
+    """
+    status_text = "" if order_status is None else str(order_status).strip()
+
+    if status_text:
+        return status_text
+
+    awb_text = "" if awb is None else str(awb).strip()
+
+    return awb_text
+
+
 def status_badge(status):
     """Render a status value as a colored pill badge (display-only)."""
     raw = "" if status is None else str(status)
@@ -1525,6 +1546,9 @@ def status_badge(status):
     elif key == "pending":
         css_class = "badge-orange"
         label = "Pending"
+    elif key == "rto":
+        css_class = "badge-orange"
+        label = "RTO"
     else:
         css_class = "badge-grey"
         label = raw.title() if raw.strip() else "Unknown Status"
@@ -1553,13 +1577,17 @@ def render_product_table(df):
     rows_html = []
 
     for _, row in df.iterrows():
+        effective_status = resolve_effective_status(
+            row.get("order_status"), row.get("awb")
+        )
+
         rows_html.append(
             "<tr>"
             f"<td>{esc(row.get('company_name'))}</td>"
             f"<td>{esc(row.get('title'))}</td>"
             f"<td>{esc(row.get('variant_id'))}</td>"
             f"<td>{esc(row.get('quantity'))}</td>"
-            f"<td>{status_badge(row.get('order_status'))}</td>"
+            f"<td>{status_badge(effective_status)}</td>"
             f"<td>{esc(row.get('awb'))}</td>"
             f"<td>{esc(row.get('sr_channel_id'))}</td>"
             f"<td>{format_amount(row.get('final_price'))}</td>"
@@ -1925,9 +1953,20 @@ if mode == "Agent":
             # STATUS SUMMARY
             # =================================================
 
-            status_series = (
-                results["order_status"].fillna("").astype(str).str.strip().str.lower()
+            order_status_clean = (
+                results["order_status"].fillna("").astype(str).str.strip()
             )
+
+            awb_clean = results["awb"].fillna("").astype(str).str.strip()
+
+            # Fall back to the awb field's text whenever order_status is
+            # blank -- see resolve_effective_status() for why: some
+            # orders carry their real interim status (e.g. "ACCEPTED",
+            # "PENDING PICKUP", "RTO") in the awb column until a real
+            # AWB tracking number is assigned.
+            status_series = order_status_clean.where(
+                order_status_clean != "", awb_clean
+            ).str.lower()
 
             total_products = len(results)
 
@@ -1937,7 +1976,13 @@ if mode == "Agent":
 
             in_transit = status_series.eq("in transit").sum()
 
-            pending = status_series.eq("pending").sum()
+            # Anything that isn't Delivered / Cancelled / In Transit is
+            # treated as Pending -- this naturally covers "Order
+            # Confirmed", "Accepted", "Pending Pickup", "RTO", and any
+            # other pre-shipment status the source data uses.
+            pending = (
+                ~status_series.isin(["delivered", "cancelled", "in transit"])
+            ).sum()
 
             st.markdown(
                 '<div class="oos-section-title">📊 Status Summary </div>',
