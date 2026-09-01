@@ -1525,6 +1525,9 @@ def status_badge(status):
     elif key == "pending":
         css_class = "badge-orange"
         label = "Pending"
+    elif key == "rto":
+        css_class = "badge-orange"
+        label = "RTO"
     else:
         css_class = "badge-grey"
         label = raw.title() if raw.strip() else "Unknown Status"
@@ -1937,7 +1940,13 @@ if mode == "Agent":
 
             in_transit = status_series.eq("in transit").sum()
 
-            pending = status_series.eq("pending").sum()
+            # Anything that isn't Delivered / Cancelled / In Transit is
+            # treated as Pending -- this naturally covers "Order
+            # Confirmed", "Accepted", "Pending Pickup", "RTO", and any
+            # other pre-shipment status the source data uses.
+            pending = (
+                ~status_series.isin(["delivered", "cancelled", "in transit"])
+            ).sum()
 
             st.markdown(
                 '<div class="oos-section-title">📊 Status Summary </div>',
