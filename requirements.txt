@@ -4,3 +4,4 @@ openpyxl
 psycopg[binary]
 sqlalchemy
 python-dotenv
+psycopg_pool
