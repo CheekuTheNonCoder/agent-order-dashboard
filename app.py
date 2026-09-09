@@ -1,4 +1,5 @@
 import html
+import uuid
 import requests
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -1630,27 +1631,105 @@ def prepare_refund_payload(refund_rows, agent_email):
 
 def append_refunds_to_gsheet(refund_payload):
     """
-    Sends the payload directly to the Google Apps Script Web App Endpoint.
-    This eliminates the need for GCP Service Accounts completely.
+    Sends refund data to Google Apps Script.
+
+    Important:
+    Apps Script may successfully write the refund but take longer than
+    the HTTP timeout to return its response. Therefore a timeout is
+    treated as an UNKNOWN result, not an automatic failure.
+
+    We intentionally DO NOT retry the POST automatically because that
+    could create duplicate refund rows.
     """
+
     try:
         webhook_url = st.secrets["gsheet_webhook_url"]
 
-        # Send HTTP POST to the Google Apps Script Web App URL
-        response = requests.post(webhook_url, json=refund_payload, timeout=15)
+        # Unique submission ID for this refund request.
+        # This is useful for future idempotency/verification.
+        submission_id = str(uuid.uuid4())
 
-        if response.status_code == 200:
+        payload = []
+
+        for row in refund_payload:
+            clean_row = {}
+
+            for key, value in row.items():
+
+                # Convert pandas / numpy missing values safely
+                if pd.isna(value):
+                    clean_row[key] = None
+
+                elif hasattr(value, "item"):
+                    try:
+                        clean_row[key] = value.item()
+                    except Exception:
+                        clean_row[key] = str(value)
+
+                else:
+                    clean_row[key] = value
+
+            clean_row["submission_id"] = submission_id
+            payload.append(clean_row)
+
+        try:
+
+            response = requests.post(
+                webhook_url,
+                json=payload,
+                timeout=30,
+            )
+
+        except requests.exceptions.ReadTimeout:
+
+            # IMPORTANT:
+            # The POST may already have reached Apps Script and written
+            # the rows. DO NOT retry it automatically.
+
+            return {
+                "status": "unknown",
+                "submission_id": submission_id,
+                "message": (
+                    "Google Sheet may already have received the refund. "
+                    "Please do not submit again."
+                ),
+            }
+
+        response.raise_for_status()
+
+        try:
             res_json = response.json()
-            if res_json.get("status") == "success":
-                return True
-            else:
-                raise RuntimeError(
-                    res_json.get("message", "GAS webapp failed to write to sheet")
-                )
-        else:
-            raise RuntimeError(f"HTTP Server Error: {response.status_code}")
+        except ValueError:
+            res_json = {}
+
+        if res_json.get("status") == "success":
+
+            return {
+                "status": "success",
+                "submission_id": submission_id,
+                "message": "Refund successfully added to Google Sheet.",
+            }
+
+        return {
+            "status": "unknown",
+            "submission_id": submission_id,
+            "message": res_json.get(
+                "message",
+                "Google Apps Script returned an unexpected response.",
+            ),
+        }
+
+    except requests.exceptions.RequestException as e:
+
+        raise RuntimeError(
+            f"Apps Script connection failed: {str(e)}"
+        )
+
     except Exception as e:
-        raise RuntimeError(f"Apps Script Connection Failed: {str(e)}")
+
+        raise RuntimeError(
+            f"Refund submission failed: {str(e)}"
+        )
 
 
 def prepare_coupon_payload(customer_contact, coupon_type, agent_email, order_id=None):
