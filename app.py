@@ -1,19 +1,19 @@
 import html
 import uuid
+import requests
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import pandas as pd
-import requests
 import streamlit as st
 import streamlit.components.v1 as components
 
 from database import (
-    get_last_upload,
-    get_order_count,
     initialize_database,
     replace_orders,
     search_orders,
+    get_order_count,
+    get_last_upload,
 )
 
 # =========================================================
@@ -1986,6 +1986,46 @@ if mode == "Agent":
         # Streamlit reruns without any Python-side tracking.
         render_cat_companion_widget(get_mascot_state(current_hour))
 
+        # =====================================================
+        # V2 — OTHER CS WORKFLOW
+        # This flow is independent of Order Search. If a ticket has
+        # no Order ID, the agent can classify it directly here.
+        # =====================================================
+
+        st.markdown(
+            '<div class="oos-section-title">🧩 Other Ticket</div>',
+            unsafe_allow_html=True,
+        )
+
+        with st.container(border=True):
+            st.caption(f"Agent: {st.session_state.agent_email}")
+
+            other_subcategory = st.selectbox(
+                "Other Category",
+                ["— Select Category —"] + CS_OTHER_SUBCATEGORIES,
+                key="cs_other_subcategory",
+            )
+
+            other_submit = st.button(
+                "Submit Other Ticket",
+                type="primary",
+                use_container_width=True,
+                disabled=(other_subcategory == "— Select Category —"),
+                key="cs_other_submit",
+            )
+
+            if other_submit:
+                try:
+                    with st.spinner("Saving Other ticket..."):
+                        submit_cs_other(
+                            subcategory=other_subcategory,
+                            agent_email=st.session_state.agent_email,
+                        )
+                    st.success("✅ Other ticket classification saved successfully.")
+                    st.session_state.mascot_state = "found"
+                except Exception as e:
+                    st.error(f"❌ Classification failed: {e}")
+
         # -----------------------------------------------------
         # UNIVERSAL SEARCH
         # -----------------------------------------------------
@@ -2254,51 +2294,6 @@ if mode == "Agent":
                                     f"ℹ️ {duplicates} duplicate issue(s) were recorded but excluded from unique reporting."
                                 )
                             st.session_state.mascot_state = "found"
-
-            # =================================================
-            # V2 — OTHER CS WORKFLOW
-            # =================================================
-
-            st.markdown(
-                '<div class="oos-section-title">🧩 Other Ticket</div>',
-                unsafe_allow_html=True,
-            )
-
-            with st.container(border=True):
-                st.caption(f"Agent: {st.session_state.agent_email}")
-
-                other_subcategory = st.selectbox(
-                    "Other Category",
-                    ["— Select Category —"] + CS_OTHER_SUBCATEGORIES,
-                    key=f"cs_other_subcategory_{order_id}",
-                )
-
-                other_submit = st.button(
-                    "Submit Other Ticket",
-                    type="primary",
-                    use_container_width=True,
-                    disabled=(other_subcategory == "— Select Category —"),
-                    key=f"cs_other_submit_{order_id}",
-                )
-
-                if other_submit:
-                    if not st.session_state.agent_email:
-                        st.error(
-                            "You must be logged in as an agent to classify a ticket."
-                        )
-                    else:
-                        try:
-                            with st.spinner("Saving Other ticket..."):
-                                submit_cs_other(
-                                    subcategory=other_subcategory,
-                                    agent_email=st.session_state.agent_email,
-                                )
-                            st.success(
-                                "✅ Other ticket classification saved successfully."
-                            )
-                            st.session_state.mascot_state = "found"
-                        except Exception as e:
-                            st.error(f"❌ Classification failed: {e}")
 
             # =================================================
             # RAW IDENTIFIERS
@@ -2608,38 +2603,54 @@ if mode == "Agent":
                             with st.spinner(
                                 "Locking refund details into the GSheet queue..."
                             ):
-                                append_refunds_to_gsheet(refund_payload)
+                                refund_result = append_refunds_to_gsheet(refund_payload)
 
-                            # Every seller-recovery refund is a Post Delivery CS issue.
-                            # Record the classification separately from the refund queue.
+                            # Only create the CS classification when the refund
+                            # webhook has positively confirmed success. If the
+                            # webhook times out, the refund result is UNKNOWN and
+                            # we must not pretend the CS classification succeeded.
                             cs_refund_failed = None
-                            for refund_row in refund_rows:
-                                try:
-                                    submit_cs_classification(
-                                        order_id=refund_row["zop_order_id"],
-                                        product_id=refund_row["product_id"],
-                                        delivery_type="Post Delivery",
-                                        subcategory="Refund Post Delivery",
-                                        agent_email=st.session_state.agent_email,
-                                    )
-                                except Exception as cs_error:
-                                    cs_refund_failed = str(cs_error)
-                                    break
+                            cs_refund_skipped = False
+
+                            if refund_result.get("status") == "success":
+                                for refund_row in refund_rows:
+                                    try:
+                                        submit_cs_classification(
+                                            order_id=refund_row["zop_order_id"],
+                                            product_id=refund_row["product_id"],
+                                            delivery_type="Post Delivery",
+                                            subcategory="Refund Post Delivery",
+                                            agent_email=st.session_state.agent_email,
+                                        )
+                                    except Exception as cs_error:
+                                        cs_refund_failed = str(cs_error)
+                                        break
+                            else:
+                                cs_refund_skipped = True
 
                             st.session_state.show_refund_confirm = False
                             st.session_state.mascot_state = "refund_success"
 
-                            st.success(
-                                "🎉 Refund submitted & Google Sheet updated successfully!"
-                            )
-                            if cs_refund_failed:
+                            if refund_result.get("status") == "success":
+                                st.success(
+                                    "🎉 Refund submitted & Google Sheet updated successfully!"
+                                )
+                                if cs_refund_failed:
+                                    st.warning(
+                                        f"Refund was submitted, but CS classification could not be saved: {cs_refund_failed}"
+                                    )
+                                else:
+                                    st.info(
+                                        "📝 Refund ticket classified as Post Delivery → Refund Post Delivery."
+                                    )
+                            elif refund_result.get("status") == "unknown":
                                 st.warning(
-                                    f"Refund was submitted, but CS classification could not be saved: {cs_refund_failed}"
+                                    "⚠️ Refund status is unknown because the Google Sheet response timed out. Do not submit the refund again."
                                 )
-                            else:
-                                st.info(
-                                    "📝 Refund ticket classified as Post Delivery → Refund Post Delivery."
-                                )
+                                if cs_refund_skipped:
+                                    st.info(
+                                        "📝 CS classification was not created because the refund could not be confirmed."
+                                    )
                         except Exception as e:
                             st.error(f"❌ Something went wrong: {str(e)}")
 
