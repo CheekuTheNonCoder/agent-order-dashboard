@@ -2,6 +2,7 @@ import html
 import os
 import uuid
 import requests
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
@@ -18,6 +19,8 @@ from database import (
     get_connection,
 )
 from report_sync import sync_reports
+
+REPORT_SYNC_EXECUTOR = ThreadPoolExecutor(max_workers=1)
 
 
 def trigger_report_sync(context_label):
@@ -36,10 +39,8 @@ def trigger_report_sync(context_label):
         "Refund",
     }
     if context_label in deferred_contexts:
-        st.toast(
-            "Saved. Google Sheet full sync is available through Manual sync.",
-            icon="✅",
-        )
+        REPORT_SYNC_EXECUTOR.submit(sync_reports)
+        st.toast("Saved. Google Sheet sync queued.", icon="✅")
         return
 
     try:
