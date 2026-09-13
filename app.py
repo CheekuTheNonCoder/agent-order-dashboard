@@ -2,6 +2,7 @@ import html
 import os
 import uuid
 import requests
+from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
@@ -18,17 +19,33 @@ from database import (
     get_last_upload,
     get_connection,
 )
+load_dotenv()
+
 from report_sync import sync_reports
 
 REPORT_SYNC_EXECUTOR = ThreadPoolExecutor(max_workers=1)
 
 
 def _report_webhook_url():
-    return (
+    # Prefer environment/.env, then Streamlit secrets. This keeps the
+    # reporting delta path working in both local Streamlit and deployed runs.
+    url = (
         os.environ.get("REPORT_SHEET_WEBHOOK_URL")
         or os.environ.get("REPORTING_WEBHOOK_URL")
         or ""
     ).strip()
+    if url:
+        return url
+    try:
+        url = str(st.secrets.get("REPORT_SHEET_WEBHOOK_URL", "")).strip()
+        if url:
+            return url
+        url = str(st.secrets.get("gsheet_webhook_url", "")).strip()
+        if url:
+            return url
+    except Exception:
+        pass
+    return ""
 
 
 def push_cs_report_delta(events):
@@ -44,10 +61,7 @@ def push_cs_report_delta(events):
 
     url = _report_webhook_url()
     if not url:
-        return {
-            "status": "error",
-            "message": "REPORT_SHEET_WEBHOOK_URL is not configured.",
-        }
+        return {"status": "error", "message": "REPORT_SHEET_WEBHOOK_URL is not configured."}
 
     try:
         response = requests.post(
@@ -64,14 +78,8 @@ def push_cs_report_delta(events):
         except ValueError:
             body = {}
         if body.get("success"):
-            return {
-                "status": "success",
-                "message": body.get("message", "CS reporting delta applied."),
-            }
-        return {
-            "status": "error",
-            "message": body.get("error", "Apps Script rejected the CS delta."),
-        }
+            return {"status": "success", "message": body.get("message", "CS reporting delta applied.")}
+        return {"status": "error", "message": body.get("error", "Apps Script rejected the CS delta.")}
     except Exception as exc:
         print(f"[REPORT DELTA WARNING] {exc}")
         return {"status": "error", "message": str(exc)}
@@ -3540,45 +3548,26 @@ if mode == "Agent":
                                         report_events.append(
                                             {
                                                 "order_id": str(zop_id),
-                                                "product_id": str(
-                                                    product["product_id"]
-                                                ),
-                                                "product": str(
-                                                    product.get("title")
-                                                    or "Unknown Product"
-                                                ),
-                                                "brand": str(
-                                                    product.get("brand")
-                                                    or "Unknown Brand"
-                                                ),
+                                                "product_id": str(product["product_id"]),
+                                                "product": str(product.get("title") or "Unknown Product"),
+                                                "brand": str(product.get("brand") or "Unknown Brand"),
                                                 "delivery_type": (
                                                     "PRE"
-                                                    if cs_delivery_type
-                                                    == "Pre Delivery"
+                                                    if cs_delivery_type == "Pre Delivery"
                                                     else "POST"
                                                 ),
-                                                "subcategory": str(
-                                                    cs_subcategory
-                                                ).strip(),
+                                                "subcategory": str(cs_subcategory).strip(),
                                                 "marketplace": (
                                                     "ZOP"
-                                                    if str(zop_id)
-                                                    .upper()
-                                                    .startswith("ZOP#")
+                                                    if str(zop_id).upper().startswith("ZOP#")
                                                     else (
                                                         "AFORA"
-                                                        if str(zop_id)
-                                                        .upper()
-                                                        .startswith("AFORA#")
+                                                        if str(zop_id).upper().startswith("AFORA#")
                                                         else "Unmapped"
                                                     )
                                                 ),
-                                                "agent_email": str(
-                                                    st.session_state.agent_email
-                                                ),
-                                                "classified_at": datetime.now(
-                                                    timezone.utc
-                                                ).isoformat(),
+                                                "agent_email": str(st.session_state.agent_email),
+                                                "classified_at": datetime.now(timezone.utc).isoformat(),
                                             }
                                         )
                                 except Exception as e:
@@ -3600,8 +3589,11 @@ if mode == "Agent":
                             if report_events:
                                 delta_result = push_cs_report_delta(report_events)
                                 if delta_result.get("status") == "error":
-                                    st.caption(
-                                        "⚠️ CS saved. Reporting update is queued for retry/manual sync."
+                                    # Never claim a retry queue exists unless one was actually
+                                    # persisted. The CS save is already committed; expose the
+                                    # real reporting-side error for diagnosis instead.
+                                    st.warning(
+                                        f"⚠️ CS saved, but reporting delta failed: {delta_result.get('message', 'Unknown reporting error')}"
                                     )
 
             # =================================================
