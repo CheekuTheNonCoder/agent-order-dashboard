@@ -9,12 +9,12 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from database import (
-    get_connection,
     initialize_database,
     replace_orders,
     search_orders,
     get_order_count,
     get_last_upload,
+    get_connection,
 )
 
 # =========================================================
@@ -297,16 +297,6 @@ st.markdown(
         padding-top: 2.2rem;
         padding-bottom: 3rem;
         max-width: 1180px;
-    }
-
-    /* Keep the primary search visually centered and easy to scan. */
-    div[data-testid="stTextInput"] {
-        max-width: 860px;
-        margin: 0 auto;
-    }
-    div[data-testid="stButton"] {
-        max-width: 860px;
-        margin: 0 auto;
     }
 
     /* ---- sidebar ---- */
@@ -1330,8 +1320,8 @@ def render_cat_companion_widget(context_state="idle"):
   }}
 
     // ---- 1. position: restore from sessionStorage, else default
-    //         upper-left corner of this widget's own lane
-  //         search box. Bounds are this component's own box (root),
+    //         upper-left corner of this widget's own lane. Bounds are
+    //         this component's own box (root),
   //         not the browser viewport — the cat never leaves its lane.
   function laneSize() {{
     return {{
@@ -1716,6 +1706,418 @@ def submit_cs_other(subcategory, agent_email):
         return response.json()
     except requests.exceptions.RequestException as e:
         raise RuntimeError(f"CS service connection failed: {e}")
+
+
+# =========================================================
+# TICKET DUMP UPLOAD
+# =========================================================
+
+TICKET_DUMP_EXPECTED_COLUMNS = 49
+TICKET_DUMP_MARKETPLACES = ["ZOP", "AFORA"]
+
+
+def _norm_col(value):
+    return "".join(ch.lower() for ch in str(value).strip() if ch.isalnum())
+
+
+def _read_ticket_dump(uploaded_file):
+    if uploaded_file.name.lower().endswith(".csv"):
+        return pd.read_csv(uploaded_file)
+    return pd.read_excel(uploaded_file)
+
+
+def _build_ticket_canonical_columns(df):
+    data = df.copy()
+    data.columns = [str(c).strip() for c in data.columns]
+    normalized = {_norm_col(c): c for c in data.columns}
+
+    aliases = {
+        "ticket_id": ["ticketid", "ticket_id", "id"],
+        "order_id": ["orderid", "order_id"],
+        "brand": ["brand", "brandname", "brand_name"],
+        "product_name": ["productname", "product_name"],
+        "ticket_category": ["ticketcategory", "category"],
+        "ticket_subcategory": [
+            "ticketcategoryticketsubcategory",
+            "ticketsubcategory",
+            "subcategory",
+        ],
+        "ticket_status": ["ticketstatus", "status"],
+        "customer_name": ["customername", "customer_name"],
+        "channel": ["channel", "source", "platform"],
+        "ticket_type": ["tickettype"],
+        "assigned_agent": ["assignedagent", "assigned_to", "assignedto"],
+        "first_responding_agent": [
+            "firstrespondingagent",
+            "firstresponseagent",
+            "firstrespondedby",
+        ],
+        "reopened_by": ["reopenedby", "reopenby"],
+        "resolved_by": ["resolvedby", "resolved_by"],
+        "created_at": [
+            "createdatdate",
+            "createddatetime",
+            "createdat",
+            "ticketcreateddate",
+            "ticketcreateddatetime",
+        ],
+        "resolved_at": ["resolvedatdate", "resolveddatetime", "resolvedat"],
+        "closed_at": ["closedatdate", "closeddatetime", "closedat"],
+        "reopened_at": ["reopeneddate", "reopeneddatetime", "reopenedat"],
+        "first_assignment_at": [
+            "firstassignment",
+            "firstassignmentdate",
+            "firstassignmentdatetime",
+        ],
+        "first_response_at": [
+            "agentsfirstresponsedate",
+            "agentsfirstresponsedatetime",
+            "firstresponsedate",
+            "firstresponsedatetime",
+        ],
+    }
+
+    for canonical, names in aliases.items():
+        source = None
+        for name in names:
+            source = normalized.get(_norm_col(name))
+            if source:
+                break
+        if source and canonical not in data.columns:
+            data[canonical] = data[source]
+
+    return data
+
+
+def _combine_date_time(data, canonical, date_aliases, time_aliases):
+    if canonical in data.columns:
+        return
+    normalized = {_norm_col(c): c for c in data.columns}
+    date_col = next(
+        (
+            normalized.get(_norm_col(x))
+            for x in date_aliases
+            if normalized.get(_norm_col(x))
+        ),
+        None,
+    )
+    time_col = next(
+        (
+            normalized.get(_norm_col(x))
+            for x in time_aliases
+            if normalized.get(_norm_col(x))
+        ),
+        None,
+    )
+    if date_col and time_col:
+        data[canonical] = pd.to_datetime(
+            data[date_col].astype(str).str.strip()
+            + " "
+            + data[time_col].astype(str).str.strip(),
+            errors="coerce",
+        )
+
+
+def _ticket_upload_to_postgres(df, marketplace, file_name):
+    if df.empty:
+        raise ValueError("Uploaded ticket dump contains no records.")
+
+    data = _build_ticket_canonical_columns(df)
+    _combine_date_time(
+        data,
+        "created_at",
+        ["Created Date", "Ticket Created Date"],
+        ["Created Time", "Ticket Created Time"],
+    )
+    _combine_date_time(data, "resolved_at", ["Resolved Date"], ["Resolved Time"])
+    _combine_date_time(data, "closed_at", ["Closed Date"], ["Closed Time"])
+    _combine_date_time(data, "reopened_at", ["Reopened Date"], ["Reopened Time"])
+    _combine_date_time(
+        data,
+        "first_assignment_at",
+        ["First Assignment Date"],
+        ["First Assignment Time"],
+    )
+    _combine_date_time(
+        data,
+        "first_response_at",
+        ["Agents' First Response Date", "First Response Date"],
+        ["Agents' First Response Time", "First Response Time"],
+    )
+
+    if "ticket_id" not in data.columns:
+        raise ValueError("Ticket ID column was not found in the dump.")
+
+    data["ticket_id"] = data["ticket_id"].astype(str).str.strip()
+    data = data[
+        data["ticket_id"].notna()
+        & (data["ticket_id"] != "")
+        & (data["ticket_id"].str.lower() != "nan")
+    ].copy()
+    if data.empty:
+        raise ValueError("No valid Ticket IDs were found in the dump.")
+
+    # Ticket dumps are stored by marketplace. Existing rows for the same
+    # marketplace + Ticket ID are not inserted again. Raw historical rows
+    # remain untouched.
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT column_name, is_nullable, column_default FROM information_schema.columns "
+                "WHERE table_schema='public' AND table_name='ticket_data' ORDER BY ordinal_position"
+            )
+            db_cols = cur.fetchall()
+            if not db_cols:
+                raise RuntimeError("ticket_data table does not exist in PostgreSQL.")
+
+            col_meta = {row[0]: row for row in db_cols}
+            normalized_db = {_norm_col(c): c for c in col_meta}
+
+            def target_for(source_name):
+                direct = normalized_db.get(_norm_col(source_name))
+                if direct:
+                    return direct
+                return None
+
+            mappings = {}
+            for source_col in data.columns:
+                target = target_for(source_col)
+                if target:
+                    mappings[source_col] = target
+
+            # Canonical aliases are mapped after direct-name matching.
+            for canonical in [
+                "ticket_id",
+                "order_id",
+                "brand",
+                "product_name",
+                "ticket_category",
+                "ticket_subcategory",
+                "ticket_status",
+                "customer_name",
+                "channel",
+                "ticket_type",
+                "assigned_agent",
+                "first_responding_agent",
+                "reopened_by",
+                "resolved_by",
+                "created_at",
+                "resolved_at",
+                "closed_at",
+                "reopened_at",
+                "first_assignment_at",
+                "first_response_at",
+            ]:
+                target = target_for(canonical)
+                if target and canonical in data.columns:
+                    mappings[canonical] = target
+
+            # Common migration naming variants. These are added to the
+            # dataframe just below, so map them now when the target columns exist.
+            variant_map = {
+                "marketplace": "marketplace",
+                "upload_id": "upload_id",
+                "uploaded_at": "uploaded_at",
+                "frt_hours": "frt_hours",
+            }
+            for canonical, db_name in variant_map.items():
+                if db_name in col_meta:
+                    mappings[canonical] = db_name
+
+            required_unmapped = []
+            for db_name, (_, nullable, default) in col_meta.items():
+                if db_name in {"id", "created_at", "updated_at"}:
+                    continue
+                if (
+                    nullable == "NO"
+                    and default is None
+                    and db_name not in mappings.values()
+                ):
+                    required_unmapped.append(db_name)
+            if required_unmapped:
+                raise RuntimeError(
+                    "ticket_data has required columns not present in this dump: "
+                    + ", ".join(required_unmapped)
+                )
+
+            # Remove rows already stored for this marketplace.
+            ticket_target = target_for("ticket_id") or target_for("Ticket ID")
+            marketplace_target = target_for("marketplace")
+            if not ticket_target or not marketplace_target:
+                raise RuntimeError(
+                    "ticket_data must contain ticket_id and marketplace columns for deduplication."
+                )
+
+            ticket_ids = data["ticket_id"].tolist()
+            cur.execute(
+                f"SELECT {ticket_target} FROM ticket_data WHERE {marketplace_target}=%s AND {ticket_target} = ANY(%s)",
+                (marketplace, ticket_ids),
+            )
+            existing = {str(row[0]).strip() for row in cur.fetchall()}
+            data = data[~data["ticket_id"].isin(existing)].copy()
+
+            if data.empty:
+                return {
+                    "inserted": 0,
+                    "duplicates": len(existing),
+                    "total": len(ticket_ids),
+                }
+
+            upload_id = str(uuid.uuid4())
+            data["marketplace"] = marketplace
+            data["upload_id"] = upload_id
+            data["uploaded_at"] = datetime.now(ZoneInfo("Asia/Kolkata"))
+
+            if "frt_hours" in col_meta:
+                # FRT is intentionally not calculated here because the dump's
+                # weekend policy is not defined. Raw first-assignment/first-response
+                # timestamps are preserved for the reporting layer.
+                data["frt_hours"] = None
+
+            insert_pairs = [
+                (src, target) for src, target in mappings.items() if src in data.columns
+            ]
+            insert_pairs = list(dict.fromkeys(insert_pairs))
+            target_cols = [target for _, target in insert_pairs]
+            source_cols = [source for source, _ in insert_pairs]
+
+            placeholders = ", ".join(["%s"] * len(target_cols))
+            insert_sql = f"INSERT INTO ticket_data ({', '.join(target_cols)}) VALUES ({placeholders})"
+
+            rows = []
+            for record in data[source_cols].itertuples(index=False, name=None):
+                cleaned = []
+                for value in record:
+                    if pd.isna(value):
+                        cleaned.append(None)
+                    elif hasattr(value, "to_pydatetime"):
+                        cleaned.append(value.to_pydatetime())
+                    elif hasattr(value, "item"):
+                        try:
+                            cleaned.append(value.item())
+                        except Exception:
+                            cleaned.append(str(value))
+                    else:
+                        cleaned.append(value)
+                rows.append(tuple(cleaned))
+
+            cur.executemany(insert_sql, rows)
+
+            if "ticket_uploads" in {
+                r[0]
+                for r in cur.execute(
+                    "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name='ticket_uploads'"
+                ).fetchall()
+            }:
+                upload_cols = []
+                upload_values = []
+                table_cols = {
+                    r[0]
+                    for r in cur.execute(
+                        "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='ticket_uploads'"
+                    ).fetchall()
+                }
+                if "marketplace" in table_cols:
+                    upload_cols.append("marketplace")
+                    upload_values.append(marketplace)
+                if "file_name" in table_cols:
+                    upload_cols.append("file_name")
+                    upload_values.append(file_name)
+                if "record_count" in table_cols:
+                    upload_cols.append("record_count")
+                    upload_values.append(len(data))
+                if "upload_id" in table_cols:
+                    upload_cols.append("upload_id")
+                    upload_values.append(upload_id)
+                if upload_cols:
+                    cur.execute(
+                        f"INSERT INTO ticket_uploads ({', '.join(upload_cols)}) VALUES ({', '.join(['%s'] * len(upload_cols))})",
+                        upload_values,
+                    )
+
+            conn.commit()
+            return {
+                "inserted": len(data),
+                "duplicates": len(existing),
+                "total": len(ticket_ids),
+            }
+
+
+def render_ticket_dump_uploader():
+    st.markdown(
+        '<div class="oos-section-title">🎫 Ticket Dumps</div>',
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        "Upload the daily 49-column ticket dump separately for ZOP and AFORA. Existing Ticket IDs are not inserted twice."
+    )
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("### ZOP Ticket Dump")
+        zop_file = st.file_uploader(
+            "Upload ZOP ticket dump", type=["xlsx", "xls", "csv"], key="zop_ticket_dump"
+        )
+    with c2:
+        st.markdown("### AFORA Ticket Dump")
+        afora_file = st.file_uploader(
+            "Upload AFORA ticket dump",
+            type=["xlsx", "xls", "csv"],
+            key="afora_ticket_dump",
+        )
+
+    for marketplace, uploaded_file, key_prefix in [
+        ("ZOP", zop_file, "zop"),
+        ("AFORA", afora_file, "afora"),
+    ]:
+        if not uploaded_file:
+            continue
+
+        try:
+            df = _read_ticket_dump(uploaded_file)
+            df.columns = [str(c).strip() for c in df.columns]
+            st.write(f"**{marketplace}:** {len(df):,} rows · {len(df.columns)} columns")
+
+            if len(df.columns) != TICKET_DUMP_EXPECTED_COLUMNS:
+                st.error(
+                    f"❌ {marketplace} dump has {len(df.columns)} columns. Expected exactly {TICKET_DUMP_EXPECTED_COLUMNS}."
+                )
+                continue
+
+            canonical = _build_ticket_canonical_columns(df)
+            if "ticket_id" not in canonical.columns:
+                st.error(f"❌ {marketplace}: Ticket ID column not found.")
+                continue
+
+            st.success(f"✅ {marketplace} dump structure looks valid.")
+            st.dataframe(df.head(8), use_container_width=True, hide_index=True)
+
+            confirm = st.checkbox(
+                f"I confirm this is the {marketplace} ticket dump.",
+                key=f"confirm_{key_prefix}_ticket_dump",
+            )
+            if confirm and st.button(
+                f"💾 Upload {marketplace} Ticket Dump",
+                type="primary",
+                use_container_width=True,
+                key=f"upload_{key_prefix}_ticket_dump",
+            ):
+                with st.spinner(
+                    f"Uploading {marketplace} ticket dump to PostgreSQL..."
+                ):
+                    result = _ticket_upload_to_postgres(
+                        df, marketplace, uploaded_file.name
+                    )
+                st.success(
+                    f"🚀 {marketplace}: {result['inserted']:,} new tickets stored successfully."
+                )
+                if result["duplicates"]:
+                    st.info(
+                        f"ℹ️ {result['duplicates']:,} duplicate Ticket ID(s) were skipped."
+                    )
+
+        except Exception as e:
+            st.error(f"❌ {marketplace} ticket dump upload failed: {e}")
 
 
 def prepare_refund_payload(refund_rows, agent_email):
@@ -2113,6 +2515,51 @@ if mode == "Agent":
 
             order_id = str(results.iloc[0].get("zop_order_id") or "")
 
+            # =================================================
+            # ORDER INFORMATION
+            # =================================================
+
+            first_row = results.iloc[0]
+
+            order_id = first_row["zop_order_id"]
+
+            zop_id = first_row["zop_id"]
+
+            seller_order_id = first_row["seller_order_id"]
+
+            st.markdown(
+                f"""
+                <div class="glass-card" style="margin-top:1.4rem;">
+                    <div class="oos-order-found">
+                        <span class="tag">Found</span>
+                        <span class="id">{esc(order_id)}</span>
+                    </div>
+                    <div style="margin-top:0.4rem; font-size:0.85rem; font-weight:600; color:var(--accent-2);">
+                         Scroll Down for Refund
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            # =================================================
+            # IDENTIFIERS
+            # =================================================
+
+            st.markdown(
+                '<div class="oos-section-title">📋 Identifiers </div>',
+                unsafe_allow_html=True,
+            )
+
+            info1, info2, info3 = st.columns(3)
+
+            info1.markdown(id_card("ZOP Order ID", order_id), unsafe_allow_html=True)
+            info2.markdown(id_card("ZOP ID", zop_id), unsafe_allow_html=True)
+            info3.markdown(
+                id_card("Seller Order ID", seller_order_id), unsafe_allow_html=True
+            )
+
+            # =================================================
             # STATUS SUMMARY
             # =================================================
 
@@ -2802,6 +3249,12 @@ else:
             )
 
             c3.markdown(id_card("Last Upload", "No upload yet"), unsafe_allow_html=True)
+
+        # =================================================
+        # TICKET DUMPS
+        # =================================================
+
+        render_ticket_dump_uploader()
 
         # =================================================
         # DAILY FULL DUMP UPLOAD
