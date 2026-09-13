@@ -214,6 +214,7 @@ def _orders_df(period, marketplace):
     if not cols:
         return pd.DataFrame()
     order_col = _pick_col(cols, ["zop_order_id"])
+    marketplace_col = _pick_col(cols, ["zop_id"])
     created_col = _pick_col(cols, ["order_created_at"])
     status_col = _pick_col(cols, ["order_status"])
     brand_col = _pick_col(cols, ["company_name"])
@@ -238,7 +239,8 @@ def _orders_df(period, marketplace):
         sql += f" AND {_ident(created_col)} >= %s"
         params.append(_period_start(period))
     if marketplace != "All":
-        sql += f" AND {_marketplace_case(order_col)} = %s"
+        filter_col = marketplace_col or order_col
+        sql += f" AND {_marketplace_case(filter_col)} = %s"
         params.append(marketplace)
     return _fetch_df(sql, tuple(params))
 
@@ -260,7 +262,7 @@ def _cs_df(period, marketplace):
     c_delivery = _pick_col(cs_cols, ["delivery_type"])
     c_subcat = _pick_col(cs_cols, ["subcategory"])
     c_date = _pick_col(cs_cols, ["classified_at"])
-    o_order = _pick_col(order_cols, ["zop_order_id"])
+    o_order = _pick_col(order_cols, ["zop_id"])
     o_product = _pick_col(order_cols, ["product_id"])
     o_brand = _pick_col(order_cols, ["company_name"])
     o_title = _pick_col(order_cols, ["title"])
