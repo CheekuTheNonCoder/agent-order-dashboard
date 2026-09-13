@@ -9,6 +9,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from database import (
+    get_connection,
     initialize_database,
     replace_orders,
     search_orders,
