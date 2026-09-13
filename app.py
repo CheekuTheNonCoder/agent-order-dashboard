@@ -2,7 +2,7 @@ import html
 import os
 import uuid
 import requests
-from datetime import datetime
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -1703,43 +1703,136 @@ def stat_card(css_class, label, value):
 def submit_cs_classification(
     order_id, product_id, delivery_type, subcategory, agent_email
 ):
-    """Save one CS classification through the existing FastAPI CS service."""
-    payload = {
-        "order_id": str(order_id),
-        "product_id": str(product_id),
-        "delivery_type": delivery_type,
-        "subcategory": subcategory,
-        "agent_email": agent_email,
-    }
+    """Save one CS classification directly to PostgreSQL."""
+    normalized_delivery = str(delivery_type).strip().upper()
+    if normalized_delivery not in {"PRE", "POST", "PRE DELIVERY", "POST DELIVERY"}:
+        raise RuntimeError("Delivery type must be PRE or POST")
+    normalized_delivery = (
+        "Pre Delivery" if normalized_delivery.startswith("PRE") else "Post Delivery"
+    )
 
-    try:
-        response = requests.post(
-            f"{CS_API_URL}/cs/classify",
-            json=payload,
-            timeout=15,
-        )
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        raise RuntimeError(f"CS service connection failed: {e}")
+    order_id = str(order_id).strip()
+    product_id = str(product_id).strip()
+    subcategory = str(subcategory).strip()
+    agent_email = str(agent_email).strip()
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT zop_id, product_id, variant_id, title, company_name
+                FROM orders
+                WHERE zop_id = %s AND product_id = %s
+                LIMIT 1
+                """,
+                (order_id, product_id),
+            )
+            row = cur.fetchone()
+            if not row:
+                raise RuntimeError("Order/product not found")
+
+            db_order_id, db_product_id, variant_id, product_name, seller = row
+            marketplace = (
+                "ZOP"
+                if str(db_order_id).upper().startswith("ZOP#")
+                else "AFORA" if str(db_order_id).upper().startswith("AFORA#") else None
+            )
+            if marketplace is None:
+                raise RuntimeError("Could not determine marketplace from Order ID")
+
+            now = datetime.now(timezone.utc)
+            cur.execute(
+                """
+                INSERT INTO cs_classifications (
+                    order_id, marketplace, product_id, variant_id, product_name,
+                    brand, seller, delivery_type, subcategory,
+                    classification_type, refund_reason, agent_email, classified_at
+                )
+                VALUES (%s, %s, %s, %s, %s, NULL, %s, %s, %s,
+                        'NORMAL', NULL, %s, %s)
+                RETURNING id
+                """,
+                (
+                    db_order_id,
+                    marketplace,
+                    db_product_id,
+                    variant_id,
+                    product_name,
+                    seller,
+                    normalized_delivery,
+                    subcategory,
+                    agent_email,
+                    now,
+                ),
+            )
+            classification_id = cur.fetchone()[0]
+
+            cur.execute(
+                """
+                SELECT id FROM cs_unique_issues
+                WHERE order_id = %s AND product_id = %s
+                  AND delivery_type = %s AND subcategory = %s
+                LIMIT 1
+                """,
+                (db_order_id, db_product_id, normalized_delivery, subcategory),
+            )
+            unique_issue = cur.fetchone() is None
+            if unique_issue:
+                cur.execute(
+                    """
+                    INSERT INTO cs_unique_issues (
+                        classification_id, order_id, marketplace, product_id,
+                        variant_id, product_name, brand, seller, delivery_type,
+                        subcategory, first_classified_at, first_agent_email
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, NULL, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        classification_id,
+                        db_order_id,
+                        marketplace,
+                        db_product_id,
+                        variant_id,
+                        product_name,
+                        seller,
+                        normalized_delivery,
+                        subcategory,
+                        now,
+                        agent_email,
+                    ),
+                )
+
+    return {
+        "status": "success",
+        "classification_id": classification_id,
+        "unique_issue": unique_issue,
+    }
 
 
 def submit_cs_other(subcategory, agent_email):
-    """Save an Other ticket classification through the existing CS service."""
-    payload = {
-        "subcategory": subcategory,
-        "agent_email": agent_email,
+    """Save an Other ticket directly to PostgreSQL."""
+    subcategory = str(subcategory).strip()
+    agent_email = str(agent_email).strip()
+    if subcategory not in CS_OTHER_SUBCATEGORIES:
+        raise RuntimeError("Invalid Other subcategory")
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO cs_other_tickets (subcategory, agent_email, classified_at)
+                VALUES (%s, %s, %s)
+                RETURNING id
+                """,
+                (subcategory, agent_email, datetime.now(timezone.utc)),
+            )
+            other_ticket_id = cur.fetchone()[0]
+
+    return {
+        "status": "success",
+        "type": "OTHER",
+        "other_ticket_id": other_ticket_id,
     }
-    try:
-        response = requests.post(
-            f"{CS_API_URL}/cs/other",
-            json=payload,
-            timeout=15,
-        )
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        raise RuntimeError(f"CS service connection failed: {e}")
 
 
 # =========================================================
