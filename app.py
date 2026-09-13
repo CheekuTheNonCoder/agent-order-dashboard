@@ -969,9 +969,9 @@ def render_cat_companion_widget(context_state="idle"):
 
   #oos-cat-wrap {{
     position: absolute;
-    /* default: right side of its lane, away from the search box */
-    left: 70%;
-    top: 30%;
+    /* default: upper-left corner of its lane */
+    left: 8px;
+    top: 8px;
     width: 96px;
     height: 108px;
     display: flex;
@@ -1278,7 +1278,7 @@ def render_cat_companion_widget(context_state="idle"):
   var eyeR = document.getElementById('oos-eye-r');
   var contextState = root.getAttribute('data-context-state') || 'idle';
 
-  var STORAGE_KEY = 'oos_cat_position_v1';
+    var STORAGE_KEY = 'oos_cat_position_v2';
   var interactionState = null;      // hover | pet | excited | annoyed | dizzy | sick
   var interactionTimer = null;
 
@@ -1318,8 +1318,8 @@ def render_cat_companion_widget(context_state="idle"):
     }}
   }}
 
-  // ---- 1. position: restore from sessionStorage, else default
-  //         right side of this widget's own lane, away from the
+    // ---- 1. position: restore from sessionStorage, else default
+    //         upper-left corner of this widget's own lane
   //         search box. Bounds are this component's own box (root),
   //         not the browser viewport — the cat never leaves its lane.
   function laneSize() {{
@@ -1360,7 +1360,7 @@ def render_cat_companion_widget(context_state="idle"):
     pos = clampPos(saved.x, saved.y);
   }} else {{
     var lane = laneSize();
-    pos = clampPos(lane.w * 0.72, lane.h * 0.28);
+    pos = clampPos(8, 8);
   }}
   wrap.style.left = pos.x + 'px';
   wrap.style.top = pos.y + 'px';
@@ -2005,46 +2005,6 @@ if mode == "Agent":
         # Streamlit reruns without any Python-side tracking.
         render_cat_companion_widget(get_mascot_state(current_hour))
 
-        # =====================================================
-        # V2 — OTHER CS WORKFLOW
-        # This flow is independent of Order Search. If a ticket has
-        # no Order ID, the agent can classify it directly here.
-        # =====================================================
-
-        st.markdown(
-            '<div class="oos-section-title">🧩 Other Ticket</div>',
-            unsafe_allow_html=True,
-        )
-
-        with st.container(border=True):
-            st.caption(f"Agent: {st.session_state.agent_email}")
-
-            other_subcategory = st.selectbox(
-                "Other Category",
-                ["— Select Category —"] + CS_OTHER_SUBCATEGORIES,
-                key="cs_other_subcategory",
-            )
-
-            other_submit = st.button(
-                "Submit Other Ticket",
-                type="primary",
-                use_container_width=True,
-                disabled=(other_subcategory == "— Select Category —"),
-                key="cs_other_submit",
-            )
-
-            if other_submit:
-                try:
-                    with st.spinner("Saving Other ticket..."):
-                        submit_cs_other(
-                            subcategory=other_subcategory,
-                            agent_email=st.session_state.agent_email,
-                        )
-                    st.success("✅ Other ticket classification saved successfully.")
-                    st.session_state.mascot_state = "found"
-                except Exception as e:
-                    st.error(f"❌ Classification failed: {e}")
-
         # -----------------------------------------------------
         # UNIVERSAL SEARCH
         # -----------------------------------------------------
@@ -2093,6 +2053,45 @@ if mode == "Agent":
                 # the agent's next click.
                 st.rerun()
 
+        # =====================================================
+        # OTHER CS WORKFLOW
+        # Compact secondary flow below the primary order search.
+        # =====================================================
+
+        with st.expander("🧩 Other Ticket", expanded=False):
+            st.caption(f"No order ID needed · Agent: {st.session_state.agent_email}")
+
+            other_col, submit_col = st.columns([3, 1])
+
+            with other_col:
+                other_subcategory = st.selectbox(
+                    "Other Category",
+                    ["— Select Category —"] + CS_OTHER_SUBCATEGORIES,
+                    key="cs_other_subcategory",
+                    label_visibility="collapsed",
+                )
+
+            with submit_col:
+                other_submit = st.button(
+                    "Submit",
+                    type="primary",
+                    use_container_width=True,
+                    disabled=(other_subcategory == "— Select Category —"),
+                    key="cs_other_submit",
+                )
+
+            if other_submit:
+                try:
+                    with st.spinner("Saving Other ticket..."):
+                        submit_cs_other(
+                            subcategory=other_subcategory,
+                            agent_email=st.session_state.agent_email,
+                        )
+                    st.success("✅ Other ticket classification saved successfully.")
+                    st.session_state.mascot_state = "found"
+                except Exception as e:
+                    st.error(f"❌ Classification failed: {e}")
+
         # -----------------------------------------------------
         # RESULTS DISPLAY
         # -----------------------------------------------------
@@ -2101,51 +2100,6 @@ if mode == "Agent":
 
         if results is not None and not results.empty:
 
-            # =================================================
-            # ORDER INFORMATION
-            # =================================================
-
-            first_row = results.iloc[0]
-
-            order_id = first_row["zop_order_id"]
-
-            zop_id = first_row["zop_id"]
-
-            seller_order_id = first_row["seller_order_id"]
-
-            st.markdown(
-                f"""
-                <div class="glass-card" style="margin-top:1.4rem;">
-                    <div class="oos-order-found">
-                        <span class="tag">Found</span>
-                        <span class="id">{esc(order_id)}</span>
-                    </div>
-                    <div style="margin-top:0.4rem; font-size:0.85rem; font-weight:600; color:var(--accent-2);">
-                         Scroll Down for Refund
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            # =================================================
-            # IDENTIFIERS
-            # =================================================
-
-            st.markdown(
-                '<div class="oos-section-title">📋 Identifiers </div>',
-                unsafe_allow_html=True,
-            )
-
-            info1, info2, info3 = st.columns(3)
-
-            info1.markdown(id_card("ZOP Order ID", order_id), unsafe_allow_html=True)
-            info2.markdown(id_card("ZOP ID", zop_id), unsafe_allow_html=True)
-            info3.markdown(
-                id_card("Seller Order ID", seller_order_id), unsafe_allow_html=True
-            )
-
-            # =================================================
             # STATUS SUMMARY
             # =================================================
 
