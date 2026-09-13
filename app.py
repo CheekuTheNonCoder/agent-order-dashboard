@@ -3462,6 +3462,7 @@ if mode == "Agent":
                         submitted = 0
                         duplicates = 0
                         failed = None
+                        report_events = []
 
                         with st.spinner("Saving CS classification..."):
                             for product in selected_cs_products:
