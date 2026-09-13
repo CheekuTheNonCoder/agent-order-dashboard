@@ -1,4 +1,5 @@
 import html
+import os
 import uuid
 import requests
 from datetime import datetime
@@ -16,6 +17,39 @@ from database import (
     get_last_upload,
     get_connection,
 )
+from report_sync import sync_reports
+
+
+def trigger_report_sync(context_label):
+    """
+    Fires the Postgres -> Apps Script -> Google Sheet reporting sync
+    in-process, right after the data that feeds it changes.
+
+    This NEVER blocks or rolls back the action that triggered it -- a
+    reporting failure only ever surfaces as a small warning in the UI.
+    Called after: a CS classification save (normal / Other / refund),
+    an Order Dump upload, and a Ticket Dump upload.
+    """
+    try:
+        result = sync_reports()
+    except Exception as e:
+        st.warning(
+            f"⚠️ Reporting sync ({context_label}) hit an unexpected error and was skipped: {e}"
+        )
+        return
+
+    status = result.get("status")
+    if status == "success":
+        st.toast("📊 Reporting sheet updated.", icon="✅")
+    elif status == "unknown":
+        st.info(f"ℹ️ Reporting sync ({context_label}): {result.get('message')}")
+    else:
+        st.warning(
+            f"⚠️ Reporting sync ({context_label}) failed: {result.get('message')}"
+        )
+    for w in result.get("warnings", []):
+        st.caption(f"Reporting note: {w}")
+
 
 # =========================================================
 # PAGE CONFIG
@@ -2115,6 +2149,7 @@ def render_ticket_dump_uploader():
                     st.info(
                         f"ℹ️ {result['duplicates']:,} duplicate Ticket ID(s) were skipped."
                     )
+                trigger_report_sync(f"{marketplace} ticket dump upload")
 
         except Exception as e:
             st.error(f"❌ {marketplace} ticket dump upload failed: {e}")
@@ -3129,6 +3164,7 @@ if mode == "Agent":
                         )
                     st.success("✅ Other ticket classification saved successfully.")
                     st.session_state.mascot_state = "found"
+                    trigger_report_sync("Other ticket classification")
                 except Exception as e:
                     st.error(f"❌ Classification failed: {e}")
 
@@ -3354,6 +3390,8 @@ if mode == "Agent":
                                     f"ℹ️ {duplicates} duplicate issue(s) were recorded but excluded from unique reporting."
                                 )
                             st.session_state.mascot_state = "found"
+                            if submitted:
+                                trigger_report_sync("CS classification")
 
             # =================================================
             # RAW IDENTIFIERS
@@ -3712,6 +3750,7 @@ if mode == "Agent":
                                 st.success(
                                     "🎉 Refund submitted & Google Sheet updated successfully!"
                                 )
+                                trigger_report_sync("Refund")
                                 if cs_refund_failed:
                                     st.warning(
                                         f"Refund was submitted, but CS classification could not be saved: {cs_refund_failed}"
@@ -3792,10 +3831,22 @@ else:
 
         if login_button:
 
-            # TEMPORARY PASSWORD
-            # Will move to Streamlit Secrets later.
+            # Admin password now comes from Streamlit Secrets / environment
+            # instead of being hardcoded in source (Section 49). Set
+            # `admin_password` in .streamlit/secrets.toml or the
+            # ADMIN_PASSWORD environment variable.
+            configured_password = st.secrets.get(
+                "admin_password", os.environ.get("ADMIN_PASSWORD")
+            )
 
-            if password == "admin123":
+            if not configured_password:
+
+                st.error(
+                    "Admin password is not configured. Set `admin_password` in "
+                    "Streamlit secrets (or ADMIN_PASSWORD env var) before logging in."
+                )
+
+            elif password == configured_password:
 
                 st.session_state.admin_logged_in = True
 
@@ -3835,6 +3886,26 @@ else:
         # =================================================
 
         render_reports()
+
+        # =================================================
+        # MANUAL REPORT SYNC (fallback if an automatic sync
+        # after upload/classification ever fails)
+        # =================================================
+
+        st.markdown(
+            '<div class="oos-section-title">🔄 Google Sheet Reporting Sync</div>',
+            unsafe_allow_html=True,
+        )
+        st.caption(
+            "This normally runs automatically after an Order Dump, a Ticket Dump, "
+            "or a CS classification. Use this only if a warning said the last "
+            "automatic sync failed."
+        )
+        if st.button("🔄 Sync Reports Now", key="manual_sync_reports_btn"):
+            with st.spinner(
+                "Syncing SUMMARY / BRAND / PRODUCT / AGENT / REFUNDS to the Google Sheet..."
+            ):
+                trigger_report_sync("Manual sync")
 
         # =================================================
         # DATABASE STATUS
@@ -4014,6 +4085,8 @@ else:
                             replace_orders(df, uploaded_file.name)
 
                         st.success(f"🚀 Uploaded {len(df):,} records successfully!")
+
+                        trigger_report_sync("Order Dump upload")
 
                         st.rerun()
 
