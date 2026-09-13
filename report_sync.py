@@ -176,8 +176,8 @@ def _ident(name):
 
 def _marketplace_case(order_col):
     return (
-        f"CASE WHEN {_ident(order_col)} ILIKE 'ZOP#%' THEN 'ZOP' "
-        f"WHEN {_ident(order_col)} ILIKE 'AFORA#%' THEN 'AFORA' ELSE 'OTHER' END"
+        f"CASE WHEN {_ident(order_col)} ILIKE 'ZOP#%%' THEN 'ZOP' "
+        f"WHEN {_ident(order_col)} ILIKE 'AFORA#%%' THEN 'AFORA' ELSE 'OTHER' END"
     )
 
 
@@ -286,8 +286,8 @@ def _cs_df(period, marketplace):
     if marketplace != "All":
         o_order_expr = f"o.{_ident(o_order)}"
         sql += (
-            f" AND CASE WHEN {o_order_expr} ILIKE 'ZOP#%' THEN 'ZOP' "
-            f"WHEN {o_order_expr} ILIKE 'AFORA#%' THEN 'AFORA' ELSE 'OTHER' END = %s"
+            f" AND CASE WHEN {o_order_expr} ILIKE 'ZOP#%%' THEN 'ZOP' "
+            f"WHEN {o_order_expr} ILIKE 'AFORA#%%' THEN 'AFORA' ELSE 'OTHER' END = %s"
         )
         params.append(marketplace)
 
