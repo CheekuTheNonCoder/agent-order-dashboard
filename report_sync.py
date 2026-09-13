@@ -107,7 +107,7 @@ CS_POST_SUBCATEGORIES = [
 # repeat a number for PRODUCT, so the same threshold is reused here as the
 # most defensible assumption -- flag this if a different number is wanted.
 MIN_BRAND_ORDER_VOLUME = 200
-MIN_PRODUCT_ORDER_VOLUME = 0
+MIN_PRODUCT_ORDER_VOLUME = 50   # must match MIN_PRODUCT_ORDERS in Apps Script
 TOP_N = 10
 
 
@@ -783,10 +783,11 @@ def _build_product_rows():
                     (pid, pname, brand, int(vol), pre_n, post_n, pre_n + post_n)
                 )
 
-            # Product report is about escalations, not order-volume qualification.
-            # Rank products by unique CS issue count and expose only the Top 10.
-            qualifying = [s for s in summary if s[6] > 0]
-            qualifying.sort(key=lambda s: (-s[6], str(s[1]).lower()))
+            # Rank by escalation RATE (issues/orders) with minimum volume threshold.
+            # Prevents a product with 2 orders/1 complaint from beating one with
+            # 10,000 orders/500 complaints. Must match MIN_PRODUCT_ORDERS in Apps Script.
+            qualifying = [s for s in summary if s[3] >= MIN_PRODUCT_ORDER_VOLUME and s[6] > 0]
+            qualifying.sort(key=lambda s: (-(s[6] / s[3]), -s[6]))  # rate desc, abs count desc
             ranked_ids = {s[0]: i + 1 for i, s in enumerate(qualifying[:TOP_N])}
 
             for pid, pname, brand, vol, pre_n, post_n, total_n in summary:
