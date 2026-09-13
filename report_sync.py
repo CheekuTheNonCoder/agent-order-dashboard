@@ -60,6 +60,7 @@ triggers.
 """
 
 import os
+import math
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -949,6 +950,28 @@ def _build_refund_rows():
 # =========================================================
 
 
+def _json_safe(value):
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    if value is pd.NaT:
+        return None
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, (datetime, pd.Timestamp)):
+        return value.isoformat()
+    if hasattr(value, "item"):
+        try:
+            return _json_safe(value.item())
+        except (ValueError, TypeError):
+            return str(value)
+    missing = pd.isna(value)
+    if isinstance(missing, bool) and missing:
+        return None
+    return value
+
+
 def _send_to_apps_script(sheets_payload):
     webhook_url = _get_secret("report_sheet_webhook_url")
     if not webhook_url:
@@ -961,9 +984,10 @@ def _send_to_apps_script(sheets_payload):
         }
 
     try:
+        safe_payload = _json_safe(sheets_payload)
         response = requests.post(
             webhook_url,
-            json={"action": "update_dashboard", "sheets": sheets_payload},
+            json={"action": "update_dashboard", "sheets": safe_payload},
             timeout=60,
             # Section 38/Bug 5: a 302 from an Apps Script Web App is a
             # normal, successful response -- do NOT follow it, and do NOT
