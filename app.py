@@ -2294,6 +2294,633 @@ def submit_special_coupon(coupon_payload):
         raise RuntimeError(f"Apps Script Connection Failed: {str(e)}")
 
 
+# =========================================================
+# REPORTS
+# =========================================================
+
+REPORT_PERIODS = ["Current", "Week", "Month"]
+REPORT_MARKETPLACES = ["All", "ZOP", "AFORA"]
+
+
+def _report_period_start(period):
+    now = datetime.now(ZoneInfo("Asia/Kolkata"))
+    if period == "Current":
+        return now.replace(hour=0, minute=0, second=0, microsecond=0)
+    if period == "Week":
+        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        return day_start - pd.Timedelta(days=day_start.weekday())
+    return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+
+def _report_fetch_df(sql, params=()):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+            columns = [desc[0] for desc in cur.description] if cur.description else []
+    return pd.DataFrame(rows, columns=columns)
+
+
+def _report_table_columns(table_name):
+    df = _report_fetch_df(
+        "SELECT column_name FROM information_schema.columns "
+        "WHERE table_schema='public' AND table_name=%s ORDER BY ordinal_position",
+        (table_name,),
+    )
+    return df["column_name"].tolist() if not df.empty else []
+
+
+def _pick_report_col(columns, candidates):
+    lookup = {str(c).lower(): c for c in columns}
+    for candidate in candidates:
+        if candidate.lower() in lookup:
+            return lookup[candidate.lower()]
+    return None
+
+
+def _report_ident(name):
+    if not name or not str(name).replace("_", "").isalnum():
+        raise ValueError("Invalid database column")
+    return '"' + str(name).replace('"', '""') + '"'
+
+
+def _marketplace_expr(order_col):
+    return (
+        f"CASE WHEN {_report_ident(order_col)} ILIKE 'ZOP#%' THEN 'ZOP' "
+        f"WHEN {_report_ident(order_col)} ILIKE 'AFORA#%' THEN 'AFORA' ELSE 'OTHER' END"
+    )
+
+
+def _report_filter_marketplace(expr, marketplace):
+    return "" if marketplace == "All" else f" AND ({expr}) = %s "
+
+
+def _business_hours_between(start_value, end_value):
+    """Working hours: 10:00 to 19:00. Weekends are not skipped because no weekend policy was defined."""
+    if (
+        start_value is None
+        or end_value is None
+        or pd.isna(start_value)
+        or pd.isna(end_value)
+    ):
+        return None
+    try:
+        start = pd.Timestamp(start_value)
+        end = pd.Timestamp(end_value)
+        if start.tzinfo is None:
+            start = start.tz_localize("Asia/Kolkata")
+        else:
+            start = start.tz_convert("Asia/Kolkata")
+        if end.tzinfo is None:
+            end = end.tz_localize("Asia/Kolkata")
+        else:
+            end = end.tz_convert("Asia/Kolkata")
+        if end <= start:
+            return 0.0
+
+        total_seconds = 0.0
+        day = start.normalize()
+        last_day = end.normalize()
+        while day <= last_day:
+            window_start = day + pd.Timedelta(hours=10)
+            window_end = day + pd.Timedelta(hours=19)
+            overlap_start = max(start, window_start)
+            overlap_end = min(end, window_end)
+            if overlap_end > overlap_start:
+                total_seconds += (overlap_end - overlap_start).total_seconds()
+            day += pd.Timedelta(days=1)
+        return total_seconds / 3600.0
+    except Exception:
+        return None
+
+
+def _add_business_metric(df, start_col, end_col, output_col):
+    if df.empty:
+        df[output_col] = pd.Series(dtype="float64")
+        return df
+    df[output_col] = [
+        _business_hours_between(a, b) for a, b in zip(df[start_col], df[end_col])
+    ]
+    return df
+
+
+def _cs_report_data(period, marketplace):
+    cs_cols = _report_table_columns("cs_classifications")
+    order_cols = _report_table_columns("orders")
+    if not cs_cols or not order_cols:
+        return pd.DataFrame()
+
+    c_order = _pick_report_col(cs_cols, ["order_id"])
+    c_product = _pick_report_col(cs_cols, ["product_id"])
+    c_delivery = _pick_report_col(cs_cols, ["delivery_type"])
+    c_subcat = _pick_report_col(cs_cols, ["subcategory"])
+    c_agent = _pick_report_col(cs_cols, ["agent_email"])
+    c_date = _pick_report_col(cs_cols, ["classified_at"])
+    o_order = _pick_report_col(order_cols, ["zop_order_id"])
+    o_product = _pick_report_col(order_cols, ["product_id"])
+    o_brand = _pick_report_col(order_cols, ["company_name"])
+    o_title = _pick_report_col(order_cols, ["title"])
+    o_created = _pick_report_col(order_cols, ["order_created_at"])
+    o_status = _pick_report_col(order_cols, ["order_status"])
+    if not all([c_order, c_product, c_delivery, c_subcat, c_date, o_order, o_product]):
+        return pd.DataFrame()
+
+    select = [
+        f"c.{_report_ident(c_order)} AS order_id",
+        f"c.{_report_ident(c_product)} AS product_id",
+        f"c.{_report_ident(c_delivery)} AS delivery_type",
+        f"c.{_report_ident(c_subcat)} AS subcategory",
+        f"c.{_report_ident(c_date)} AS classified_at",
+        f"o.{_report_ident(o_order)} AS master_order_id",
+    ]
+    for col, alias in [
+        (o_brand, "brand"),
+        (o_title, "product"),
+        (o_created, "order_created_at"),
+        (o_status, "order_status"),
+    ]:
+        if col:
+            select.append(f"o.{_report_ident(col)} AS {alias}")
+        else:
+            select.append(f"NULL AS {alias}")
+    if c_agent:
+        select.append(f"c.{_report_ident(c_agent)} AS agent_email")
+    else:
+        select.append("NULL AS agent_email")
+
+    start = _report_period_start(period)
+    sql = (
+        f"SELECT {', '.join(select)} FROM cs_classifications c "
+        f"LEFT JOIN orders o ON CAST(c.{_report_ident(c_order)} AS TEXT)=CAST(o.{_report_ident(o_order)} AS TEXT) "
+        f"AND CAST(c.{_report_ident(c_product)} AS TEXT)=CAST(o.{_report_ident(o_product)} AS TEXT) "
+        f"WHERE c.{_report_ident(c_date)} >= %s"
+    )
+    params = [start]
+    if marketplace != "All":
+        o_order_expr = f"o.{_report_ident(o_order)}"
+        sql += (
+            f" AND CASE WHEN {o_order_expr} ILIKE 'ZOP#%' THEN 'ZOP' "
+            f"WHEN {o_order_expr} ILIKE 'AFORA#%' THEN 'AFORA' ELSE 'OTHER' END = %s"
+        )
+        params.append(marketplace)
+    return _report_fetch_df(sql, tuple(params))
+
+
+def _prepare_cs_unique(df):
+    if df.empty:
+        return df
+    key_cols = ["order_id", "product_id", "delivery_type", "subcategory"]
+    return df.drop_duplicates(subset=key_cols, keep="first").copy()
+
+
+def _report_orders(period, marketplace):
+    cols = _report_table_columns("orders")
+    if not cols:
+        return pd.DataFrame()
+    order_col = _pick_report_col(cols, ["zop_order_id"])
+    created_col = _pick_report_col(cols, ["order_created_at"])
+    status_col = _pick_report_col(cols, ["order_status"])
+    brand_col = _pick_report_col(cols, ["company_name"])
+    title_col = _pick_report_col(cols, ["title"])
+    product_col = _pick_report_col(cols, ["product_id"])
+    if not order_col:
+        return pd.DataFrame()
+    select = [f"{_report_ident(order_col)} AS order_id"]
+    for col, alias in [
+        (created_col, "order_created_at"),
+        (status_col, "order_status"),
+        (brand_col, "brand"),
+        (title_col, "product"),
+        (product_col, "product_id"),
+    ]:
+        select.append(f"{_report_ident(col)} AS {alias}" if col else f"NULL AS {alias}")
+    start = _report_period_start(period)
+    sql = f"SELECT {', '.join(select)} FROM orders WHERE 1=1"
+    params = []
+    if created_col:
+        sql += f" AND {_report_ident(created_col)} >= %s"
+        params.append(start)
+    if marketplace != "All":
+        sql += f" AND {_marketplace_expr(order_col)} = %s"
+        params.append(marketplace)
+    return _report_fetch_df(sql, tuple(params))
+
+
+def _ticket_report_data(period, marketplace):
+    cols = _report_table_columns("ticket_data")
+    if not cols:
+        return pd.DataFrame()
+    aliases = {
+        "ticket_id": ["ticket_id", "ticketid"],
+        "created_at": ["created_at", "ticket_created_at", "createdat"],
+        "first_assignment_at": [
+            "first_assignment_at",
+            "first_assigned_at",
+            "assigned_at",
+        ],
+        "first_response_at": [
+            "first_response_at",
+            "agents_first_response_date",
+            "agent_first_response_at",
+            "last_response_at",
+        ],
+        "resolved_at": ["resolved_at", "resolved_date", "resolvedat"],
+        "closed_at": ["closed_at", "closed_date", "closedat"],
+        "reopened_at": ["reopened_at", "reopened_date", "reopen_date"],
+        "first_responding_agent": ["first_responding_agent", "first_response_agent"],
+        "reopened_by": ["reopened_by", "reopen_by"],
+        "resolved_by": ["resolved_by", "resolver", "resolved_agent"],
+        "order_id": ["order_id", "zop_order_id"],
+        "marketplace": ["marketplace"],
+    }
+    picked = {k: _pick_report_col(cols, v) for k, v in aliases.items()}
+    if not picked["ticket_id"]:
+        return pd.DataFrame()
+    select = [f"{_report_ident(picked['ticket_id'])} AS ticket_id"]
+    for key in aliases:
+        if key == "ticket_id":
+            continue
+        col = picked[key]
+        select.append(f"{_report_ident(col)} AS {key}" if col else f"NULL AS {key}")
+    start = _report_period_start(period)
+    date_col = picked["created_at"] or picked["first_response_at"]
+    sql = f"SELECT {', '.join(select)} FROM ticket_data WHERE 1=1"
+    params = []
+    if date_col:
+        sql += f" AND {_report_ident(date_col)} >= %s"
+        params.append(start)
+    if marketplace != "All":
+        if picked["marketplace"]:
+            sql += f" AND {_report_ident(picked['marketplace'])} = %s"
+        elif picked["order_id"]:
+            sql += f" AND {_marketplace_expr(picked['order_id'])} = %s"
+        else:
+            return pd.DataFrame()
+        params.append(marketplace)
+    return _report_fetch_df(sql, tuple(params))
+
+
+def _agent_report(ticket_df):
+    if ticket_df.empty:
+        return pd.DataFrame(
+            columns=[
+                "Agent",
+                "First Response Tickets",
+                "Reopened Tickets",
+                "Total Work Handled",
+                "Complete Tickets",
+                "Avg FRT",
+                "Resolution Rate",
+                "Avg Resolution Time",
+            ]
+        )
+
+    ticket_df = ticket_df.copy()
+    for c in ["first_responding_agent", "reopened_by", "resolved_by"]:
+        ticket_df[c] = ticket_df[c].fillna("").astype(str).str.strip()
+    ticket_df["first_response_at"] = pd.to_datetime(
+        ticket_df["first_response_at"], errors="coerce"
+    )
+    ticket_df["first_assignment_at"] = pd.to_datetime(
+        ticket_df["first_assignment_at"], errors="coerce"
+    )
+    ticket_df["created_at"] = pd.to_datetime(ticket_df["created_at"], errors="coerce")
+    ticket_df["resolved_at"] = pd.to_datetime(ticket_df["resolved_at"], errors="coerce")
+    ticket_df["closed_at"] = pd.to_datetime(ticket_df["closed_at"], errors="coerce")
+    ticket_df["reopened_at"] = pd.to_datetime(ticket_df["reopened_at"], errors="coerce")
+
+    ticket_df["frt_start"] = ticket_df["first_assignment_at"].fillna(
+        ticket_df["created_at"]
+    )
+    _add_business_metric(ticket_df, "frt_start", "first_response_at", "frt_hours")
+    ticket_df["resolution_start"] = ticket_df["first_assignment_at"].fillna(
+        ticket_df["created_at"]
+    )
+    _add_business_metric(
+        ticket_df, "resolution_start", "resolved_at", "resolution_hours"
+    )
+    ticket_df["valid_resolved"] = (
+        ticket_df["resolved_at"].notna() & ticket_df["closed_at"].notna()
+    )
+    ticket_df["has_reopen"] = ticket_df["reopened_at"].notna() | (
+        ticket_df["reopened_by"] != ""
+    )
+
+    agents = sorted(
+        set(
+            ticket_df.loc[
+                ticket_df.first_responding_agent != "", "first_responding_agent"
+            ]
+        )
+        | set(ticket_df.loc[ticket_df.reopened_by != "", "reopened_by"])
+    )
+    rows = []
+    for agent in agents:
+        first = ticket_df[ticket_df.first_responding_agent == agent]
+        reopened = ticket_df[ticket_df.reopened_by == agent]
+        work_ids = set(first.ticket_id.astype(str)) | set(
+            reopened.ticket_id.astype(str)
+        )
+        complete = first[
+            (first.first_responding_agent == first.resolved_by) & (~first.has_reopen)
+        ]
+        resolved_work = ticket_df[ticket_df.ticket_id.astype(str).isin(work_ids)]
+        valid_resolved = resolved_work[resolved_work.valid_resolved]
+        frt = first["frt_hours"].dropna()
+        resolution = valid_resolved["resolution_hours"].dropna()
+        rows.append(
+            {
+                "Agent": agent,
+                "First Response Tickets": len(first),
+                "Reopened Tickets": len(reopened),
+                "Total Work Handled": len(work_ids),
+                "Complete Tickets": len(complete),
+                "Avg FRT": round(float(frt.mean()), 2) if not frt.empty else None,
+                "Resolution Rate": (
+                    round((len(valid_resolved) / len(work_ids)) * 100, 2)
+                    if work_ids
+                    else 0.0
+                ),
+                "Avg Resolution Time": (
+                    round(float(resolution.mean()), 2) if not resolution.empty else None
+                ),
+            }
+        )
+    return pd.DataFrame(rows).sort_values(
+        ["Total Work Handled", "Agent"], ascending=[False, True]
+    )
+
+
+def render_reports():
+    st.markdown(
+        '<div class="oos-section-title">📊 Reports</div>', unsafe_allow_html=True
+    )
+    st.caption(
+        "Management reporting from PostgreSQL. CS issue counts use the smart unique key: Order ID + Product ID + Delivery Type + Subcategory."
+    )
+
+    top1, top2 = st.columns(2)
+    with top1:
+        period = st.selectbox("Period", REPORT_PERIODS, key="report_period")
+    with top2:
+        marketplace = st.selectbox(
+            "Marketplace", REPORT_MARKETPLACES, key="report_marketplace"
+        )
+
+    tab_summary, tab_brand, tab_product, tab_agent, tab_refund = st.tabs(
+        ["SUMMARY", "BRAND", "PRODUCT", "AGENT", "REFUNDS"]
+    )
+
+    cs = _prepare_cs_unique(_cs_report_data(period, marketplace))
+    orders = _report_orders(period, marketplace)
+
+    with tab_summary:
+        total_orders = len(orders)
+        delivered_orders = (
+            int((orders["order_status"].astype(str).str.strip() == "DELIVERED").sum())
+            if not orders.empty
+            else 0
+        )
+        pre = cs[cs.delivery_type == "Pre Delivery"] if not cs.empty else pd.DataFrame()
+        post = (
+            cs[cs.delivery_type == "Post Delivery"] if not cs.empty else pd.DataFrame()
+        )
+        pre_count, post_count = len(pre), len(post)
+        pre_pct = (pre_count / total_orders * 100) if total_orders else 0
+        post_pct = (post_count / delivered_orders * 100) if delivered_orders else 0
+        metrics = st.columns(6)
+        metrics[0].metric("Total Orders", f"{total_orders:,}")
+        metrics[1].metric("Delivered Orders", f"{delivered_orders:,}")
+        metrics[2].metric("Pre Issues", f"{pre_count:,}")
+        metrics[3].metric("Post Issues", f"{post_count:,}")
+        metrics[4].metric("Pre %", f"{pre_pct:.2f}%")
+        metrics[5].metric("Post %", f"{post_pct:.2f}%")
+        all_subcats = list(dict.fromkeys(CS_PRE_SUBCATEGORIES + CS_POST_SUBCATEGORIES))
+        summary_rows = []
+        for sub in all_subcats:
+            summary_rows.append(
+                {
+                    "Subcategory": sub,
+                    "Pre Delivery": (
+                        int((pre.subcategory == sub).sum()) if not pre.empty else 0
+                    ),
+                    "Post Delivery": (
+                        int((post.subcategory == sub).sum()) if not post.empty else 0
+                    ),
+                }
+            )
+        st.dataframe(
+            pd.DataFrame(summary_rows), use_container_width=True, hide_index=True
+        )
+
+    with tab_brand:
+        if cs.empty or "brand" not in cs.columns:
+            st.info("No CS classification data available for this period.")
+        else:
+            brand_counts = (
+                cs.groupby("brand", dropna=False)
+                .size()
+                .reset_index(name="Issues")
+                .sort_values("Issues", ascending=False)
+            )
+            brand_counts["brand"] = brand_counts["brand"].fillna("Unknown").astype(str)
+            top20 = brand_counts.head(20)
+            st.markdown("### Top 20 Brands")
+            st.dataframe(top20, use_container_width=True, hide_index=True)
+            brands = sorted(
+                [b for b in brand_counts.brand.tolist() if b and b != "nan"]
+            )
+            selected = (
+                st.selectbox("Select Brand", brands, key="report_brand")
+                if brands
+                else None
+            )
+            if selected:
+                view = cs[cs.brand.fillna("Unknown").astype(str) == selected]
+                st.dataframe(
+                    view.groupby("subcategory")
+                    .size()
+                    .reset_index(name="Issues")
+                    .sort_values("Issues", ascending=False),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+
+    with tab_product:
+        if cs.empty or "product" not in cs.columns:
+            st.info("No CS classification data available for this period.")
+        else:
+            product_counts = (
+                cs.groupby(["product_id", "product"], dropna=False)
+                .size()
+                .reset_index(name="Issues")
+                .sort_values("Issues", ascending=False)
+            )
+            product_counts["product"] = (
+                product_counts["product"].fillna("Unknown").astype(str)
+            )
+            st.markdown("### Top 20 Products")
+            st.dataframe(
+                product_counts.head(20), use_container_width=True, hide_index=True
+            )
+            product_options = [
+                f"{r.product_id} | {r.product}"
+                for r in product_counts.itertuples(index=False)
+            ]
+            selected = (
+                st.selectbox("Select Product", product_options, key="report_product")
+                if product_options
+                else None
+            )
+            if selected:
+                pid = selected.split(" | ", 1)[0]
+                view = cs[cs.product_id.astype(str) == str(pid)]
+                st.dataframe(
+                    view.groupby("subcategory")
+                    .size()
+                    .reset_index(name="Issues")
+                    .sort_values("Issues", ascending=False),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+
+    with tab_agent:
+        agent_period = st.selectbox(
+            "Agent Period", ["Last Day", "Week", "Month"], key="agent_report_period"
+        )
+        agent_marketplace = st.selectbox(
+            "Agent Marketplace", REPORT_MARKETPLACES, key="agent_report_marketplace"
+        )
+        ticket_period = "Current" if agent_period == "Last Day" else agent_period
+        tickets = _ticket_report_data(ticket_period, agent_marketplace)
+        report = _agent_report(tickets)
+        st.dataframe(report, use_container_width=True, hide_index=True)
+        st.caption(
+            "FRT and resolution time are working-hour calculations using 10:00 AM to 7:00 PM. Weekend skipping is not applied because no weekend policy was defined. Resolution rate only counts tickets with both Resolved Date and Closed Date."
+        )
+
+    with tab_refund:
+        st.info(
+            "Refund reporting is read-only. The live Google Sheet must expose a separate read-only endpoint in Streamlit Secrets as `refund_report_read_url`; the existing refund write webhook is never modified by this report."
+        )
+        read_url = st.secrets.get("refund_report_read_url", "").strip()
+        if not read_url:
+            st.warning(
+                "Refund report source is not configured yet. No refund sheet is modified by this screen."
+            )
+        else:
+            try:
+                response = requests.get(read_url, timeout=20)
+                response.raise_for_status()
+                payload = response.json()
+                rows = payload.get("rows", payload if isinstance(payload, list) else [])
+                rdf = pd.DataFrame(rows)
+                if rdf.empty:
+                    st.info("No refund records returned by the read-only source.")
+                else:
+                    rdf.columns = [str(c).strip() for c in rdf.columns]
+                    date_col = next(
+                        (
+                            c
+                            for c in rdf.columns
+                            if c.lower()
+                            in {
+                                "done date",
+                                "done_date",
+                                "date",
+                                "submitted at",
+                                "submitted_at",
+                            }
+                        ),
+                        None,
+                    )
+                    brand_col = next(
+                        (
+                            c
+                            for c in rdf.columns
+                            if c.lower() in {"brand", "company_name"}
+                        ),
+                        None,
+                    )
+                    order_col = next(
+                        (
+                            c
+                            for c in rdf.columns
+                            if c.lower() in {"order id", "order_id"}
+                        ),
+                        None,
+                    )
+                    amount_col = next(
+                        (
+                            c
+                            for c in rdf.columns
+                            if c.lower() in {"amount", "refund amount", "refund_amount"}
+                        ),
+                        None,
+                    )
+                    reason_col = next(
+                        (
+                            c
+                            for c in rdf.columns
+                            if c.lower() in {"refund reason", "refund_reason"}
+                        ),
+                        None,
+                    )
+                    product_col = next(
+                        (
+                            c
+                            for c in rdf.columns
+                            if c.lower() in {"product", "product name", "product_name"}
+                        ),
+                        None,
+                    )
+                    if date_col:
+                        rdf[date_col] = pd.to_datetime(rdf[date_col], errors="coerce")
+                        start = _report_period_start(period)
+                        rdf = rdf[rdf[date_col] >= start]
+                    if brand_col:
+                        brand_options = ["All"] + sorted(
+                            rdf[brand_col].dropna().astype(str).unique().tolist()
+                        )
+                        rb = st.selectbox(
+                            "Refund Brand", brand_options, key="refund_report_brand"
+                        )
+                        if rb != "All":
+                            rdf = rdf[rdf[brand_col].astype(str) == rb]
+                    amount_series = (
+                        pd.to_numeric(rdf[amount_col], errors="coerce")
+                        if amount_col
+                        else pd.Series(dtype=float)
+                    )
+                    c1, c2 = st.columns(2)
+                    c1.metric(
+                        "Refund Orders",
+                        (
+                            f"{rdf[order_col].nunique():,}"
+                            if order_col
+                            else f"{len(rdf):,}"
+                        ),
+                    )
+                    c2.metric("Refund Amount", f"₹{amount_series.fillna(0).sum():,.2f}")
+                    display_cols = [
+                        c
+                        for c in [
+                            date_col,
+                            order_col,
+                            brand_col,
+                            product_col,
+                            amount_col,
+                            reason_col,
+                        ]
+                        if c
+                    ]
+                    st.dataframe(
+                        rdf[display_cols], use_container_width=True, hide_index=True
+                    )
+            except Exception as e:
+                st.error(f"Refund report read failed: {e}")
+
+
 def render_agent_login():
     """
     Simple session-based Agent Login screen.
@@ -3202,6 +3829,12 @@ else:
                 st.session_state.admin_logged_in = False
 
                 st.rerun()
+
+        # =================================================
+        # REPORTS
+        # =================================================
+
+        render_reports()
 
         # =================================================
         # DATABASE STATUS
