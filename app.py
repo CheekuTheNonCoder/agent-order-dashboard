@@ -18,40 +18,49 @@ from database import (
     get_last_upload,
     get_connection,
 )
+import logging
+
 from report_sync import sync_reports, push_cs_delta
 
-REPORT_SYNC_EXECUTOR = ThreadPoolExecutor(max_workers=1)
+REPORT_SYNC_EXECUTOR = ThreadPoolExecutor(max_workers=2)
+
+
+def _bg_sync_reports(context_label):
+    """Background worker: full sheet sync. Never touches Streamlit UI."""
+    try:
+        result = sync_reports()
+        status = result.get("status")
+        if status == "success":
+            logging.info("[reporting] sync OK (%s): %s", context_label, result.get("message"))
+        else:
+            logging.warning("[reporting] sync failed (%s): %s", context_label, result.get("message"))
+    except Exception as e:
+        logging.warning("[reporting] sync exception (%s): %s", context_label, e)
 
 
 def trigger_report_sync(context_label):
-    """Full baseline sync for dump/refund changes only."""
+    """Queue a full sheet sync in the background — UI returns immediately."""
+    REPORT_SYNC_EXECUTOR.submit(_bg_sync_reports, context_label)
+    st.toast("📊 Reporting update queued.", icon="⏳")
+
+
+def _bg_push_cs_delta(events):
+    """Background worker: CS delta only. Never touches Streamlit UI."""
     try:
-        result = sync_reports()
+        result = push_cs_delta(events)
+        if result.get("status") == "success":
+            logging.info("[CS reporting] delta OK: %s", result.get("message"))
+        else:
+            logging.warning("[CS reporting] delta failed: %s", result.get("message"))
     except Exception as e:
-        st.warning(f"⚠️ Reporting sync ({context_label}) failed: {e}")
-        return
-    status = result.get("status")
-    if status == "success":
-        st.toast("📊 Reporting sheet updated.", icon="✅")
-    elif status == "unknown":
-        st.info(f"ℹ️ Reporting sync ({context_label}): {result.get('message')}")
-    else:
-        st.warning(f"⚠️ Reporting sync ({context_label}) failed: {result.get('message')}")
+        logging.warning("[CS reporting] delta exception: %s", e)
 
 
 def trigger_cs_report_delta(events):
-    """Fast path: send only unique CS classification deltas."""
+    """Queue CS delta reporting in the background — UI returns immediately."""
     if not events:
-        return True
-    try:
-        result = push_cs_delta(events)
-    except Exception as e:
-        st.warning(f"⚠️ CS saved, but reporting delta failed: {e}")
-        return False
-    if result.get("status") == "success":
-        return True
-    st.warning(f"⚠️ CS saved, but reporting update failed: {result.get('message')}")
-    return False
+        return
+    REPORT_SYNC_EXECUTOR.submit(_bg_push_cs_delta, list(events))
 
 
 # =========================================================
