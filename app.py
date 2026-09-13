@@ -30,6 +30,18 @@ def trigger_report_sync(context_label):
     Called after: a CS classification save (normal / Other / refund),
     an Order Dump upload, and a Ticket Dump upload.
     """
+    deferred_contexts = {
+        "CS classification",
+        "Other ticket classification",
+        "Refund",
+    }
+    if context_label in deferred_contexts:
+        st.toast(
+            "Saved. Google Sheet full sync is available through Manual sync.",
+            icon="✅",
+        )
+        return
+
     try:
         result = sync_reports()
     except Exception as e:

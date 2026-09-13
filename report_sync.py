@@ -204,6 +204,15 @@ def _canonical_subcategory(value):
     return text.strip().title()
 
 
+def _canonical_delivery(value):
+    text = " ".join(str(value or "").split()).strip().upper()
+    if text in {"PRE", "PRE DELIVERY"}:
+        return "Pre Delivery"
+    if text in {"POST", "POST DELIVERY"}:
+        return "Post Delivery"
+    return text
+
+
 # =========================================================
 # ORDERS
 # =========================================================
@@ -296,6 +305,7 @@ def _cs_df(period, marketplace):
 
     df = _fetch_df(sql, tuple(params))
     if not df.empty:
+        df["delivery_type"] = df["delivery_type"].map(_canonical_delivery)
         df["subcategory"] = df["subcategory"].map(_canonical_subcategory)
         # Section 12 dedup key: same issue reported across multiple ticket
         # interactions counts once.
