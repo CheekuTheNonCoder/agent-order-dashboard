@@ -1002,7 +1002,7 @@ def _send_to_apps_script(sheets_payload):
         response = requests.post(
             webhook_url,
             json={"action": "update_dashboard", "sheets": safe_payload},
-            timeout=60,
+            timeout=10,
             # Section 38/Bug 5: a 302 from an Apps Script Web App is a
             # normal, successful response -- do NOT follow it, and do NOT
             # treat it as a failure.
