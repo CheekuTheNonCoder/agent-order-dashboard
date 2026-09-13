@@ -66,6 +66,7 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
+from functools import lru_cache
 
 from database import get_connection
 
@@ -107,8 +108,9 @@ CS_POST_SUBCATEGORIES = [
 # repeat a number for PRODUCT, so the same threshold is reused here as the
 # most defensible assumption -- flag this if a different number is wanted.
 MIN_BRAND_ORDER_VOLUME = 200
-MIN_PRODUCT_ORDER_VOLUME = 200
+MIN_PRODUCT_ORDER_VOLUME = 0
 TOP_N = 20
+TOP_PRODUCT_N = 10
 
 
 # =========================================================
@@ -152,6 +154,7 @@ def _fetch_df(sql, params=()):
     return pd.DataFrame(rows, columns=cols)
 
 
+@lru_cache(maxsize=32)
 def _table_columns(table_name):
     df = _fetch_df(
         "SELECT column_name FROM information_schema.columns "
@@ -218,6 +221,7 @@ def _canonical_delivery(value):
 # =========================================================
 
 
+@lru_cache(maxsize=32)
 def _orders_df(period, marketplace):
     cols = _table_columns("orders")
     if not cols:
@@ -260,6 +264,7 @@ def _orders_df(period, marketplace):
 # =========================================================
 
 
+@lru_cache(maxsize=32)
 def _cs_df(period, marketplace):
     cs_cols = _table_columns("cs_classifications")
     order_cols = _table_columns("orders")
@@ -321,6 +326,7 @@ def _cs_df(period, marketplace):
 # =========================================================
 
 
+@lru_cache(maxsize=32)
 def _ticket_df(period, marketplace):
     cols = _table_columns("ticket_data")
     if not cols:
@@ -783,9 +789,9 @@ def _build_product_rows():
                     (pid, pname, brand, int(vol), pre_n, post_n, pre_n + post_n)
                 )
 
-            qualifying = [s for s in summary if s[3] > MIN_PRODUCT_ORDER_VOLUME]
-            qualifying.sort(key=lambda s: s[6], reverse=True)
-            ranked_ids = {s[0]: i + 1 for i, s in enumerate(qualifying[:TOP_N])}
+            qualifying = [s for s in summary if s[6] > 0 and s[3] > MIN_PRODUCT_ORDER_VOLUME]
+            qualifying.sort(key=lambda s: (s[6], s[4], s[5]), reverse=True)
+            ranked_ids = {s[0]: i + 1 for i, s in enumerate(qualifying[:TOP_PRODUCT_N])}
 
             for pid, pname, brand, vol, pre_n, post_n, total_n in summary:
                 rank = ranked_ids.get(pid, "")
@@ -1064,6 +1070,13 @@ def sync_reports():
     is uploaded, or a Ticket Dump is uploaded.
     """
     warnings = []
+
+    # Cache database reads only for the duration of this baseline build. This
+    # prevents Summary/Brand/Product/Agent from re-querying the same period
+    # and marketplace repeatedly, while still guaranteeing a fresh baseline
+    # after every new Order/Ticket dump.
+    for _fn in (_table_columns, _orders_df, _cs_df, _ticket_df):
+        _fn.cache_clear()
 
     summary_rows = _build_summary_rows()
     brand_rows = _build_brand_rows()
