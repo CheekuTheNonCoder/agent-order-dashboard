@@ -66,7 +66,6 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
-from functools import lru_cache
 
 from database import get_connection
 
@@ -109,8 +108,7 @@ CS_POST_SUBCATEGORIES = [
 # most defensible assumption -- flag this if a different number is wanted.
 MIN_BRAND_ORDER_VOLUME = 200
 MIN_PRODUCT_ORDER_VOLUME = 0
-TOP_N = 20
-TOP_PRODUCT_N = 10
+TOP_N = 10
 
 
 # =========================================================
@@ -154,7 +152,6 @@ def _fetch_df(sql, params=()):
     return pd.DataFrame(rows, columns=cols)
 
 
-@lru_cache(maxsize=32)
 def _table_columns(table_name):
     df = _fetch_df(
         "SELECT column_name FROM information_schema.columns "
@@ -221,7 +218,6 @@ def _canonical_delivery(value):
 # =========================================================
 
 
-@lru_cache(maxsize=32)
 def _orders_df(period, marketplace):
     cols = _table_columns("orders")
     if not cols:
@@ -264,7 +260,6 @@ def _orders_df(period, marketplace):
 # =========================================================
 
 
-@lru_cache(maxsize=32)
 def _cs_df(period, marketplace):
     cs_cols = _table_columns("cs_classifications")
     order_cols = _table_columns("orders")
@@ -326,7 +321,6 @@ def _cs_df(period, marketplace):
 # =========================================================
 
 
-@lru_cache(maxsize=32)
 def _ticket_df(period, marketplace):
     cols = _table_columns("ticket_data")
     if not cols:
@@ -789,9 +783,11 @@ def _build_product_rows():
                     (pid, pname, brand, int(vol), pre_n, post_n, pre_n + post_n)
                 )
 
-            qualifying = [s for s in summary if s[6] > 0 and s[3] > MIN_PRODUCT_ORDER_VOLUME]
-            qualifying.sort(key=lambda s: (s[6], s[4], s[5]), reverse=True)
-            ranked_ids = {s[0]: i + 1 for i, s in enumerate(qualifying[:TOP_PRODUCT_N])}
+            # Product report is about escalations, not order-volume qualification.
+            # Rank products by unique CS issue count and expose only the Top 10.
+            qualifying = [s for s in summary if s[6] > 0]
+            qualifying.sort(key=lambda s: (-s[6], str(s[1]).lower()))
+            ranked_ids = {s[0]: i + 1 for i, s in enumerate(qualifying[:TOP_N])}
 
             for pid, pname, brand, vol, pre_n, post_n, total_n in summary:
                 rank = ranked_ids.get(pid, "")
@@ -1054,6 +1050,46 @@ def _send_to_apps_script(sheets_payload):
 
 
 # =========================================================
+# INCREMENTAL CS DELTA
+# =========================================================
+
+
+def _send_cs_delta(events):
+    webhook_url = _get_secret("report_sheet_webhook_url")
+    if not webhook_url:
+        return {"status": "error", "message": "report_sheet_webhook_url is not configured."}
+    if not events:
+        return {"status": "success", "message": "No unique CS events to report."}
+    try:
+        response = requests.post(
+            webhook_url,
+            json={"action": "cs_delta", "events": _json_safe(events)},
+            timeout=15,
+            allow_redirects=False,
+        )
+    except requests.exceptions.RequestException as e:
+        return {"status": "error", "message": f"CS delta webhook connection failed: {e}"}
+    if response.status_code in (301, 302, 303, 307, 308):
+        return {"status": "success", "message": "CS delta accepted by Apps Script."}
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        return {"status": "error", "message": f"CS delta webhook returned an error: {e}"}
+    try:
+        body = response.json()
+    except ValueError:
+        body = {}
+    if body.get("success"):
+        return {"status": "success", "message": body.get("message", "CS delta applied.")}
+    return {"status": "error", "message": body.get("error", "Apps Script rejected CS delta.")}
+
+
+def push_cs_delta(events):
+    """Send only newly-created unique CS issues to the reporting sheet."""
+    return _send_cs_delta(events)
+
+
+# =========================================================
 # PUBLIC ENTRY POINT
 # =========================================================
 
@@ -1070,13 +1106,6 @@ def sync_reports():
     is uploaded, or a Ticket Dump is uploaded.
     """
     warnings = []
-
-    # Cache database reads only for the duration of this baseline build. This
-    # prevents Summary/Brand/Product/Agent from re-querying the same period
-    # and marketplace repeatedly, while still guaranteeing a fresh baseline
-    # after every new Order/Ticket dump.
-    for _fn in (_table_columns, _orders_df, _cs_df, _ticket_df):
-        _fn.cache_clear()
 
     summary_rows = _build_summary_rows()
     brand_rows = _build_brand_rows()
