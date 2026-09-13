@@ -1707,9 +1707,7 @@ def submit_cs_classification(
     normalized_delivery = str(delivery_type).strip().upper()
     if normalized_delivery not in {"PRE", "POST", "PRE DELIVERY", "POST DELIVERY"}:
         raise RuntimeError("Delivery type must be PRE or POST")
-    normalized_delivery = (
-        "Pre Delivery" if normalized_delivery.startswith("PRE") else "Post Delivery"
-    )
+    normalized_delivery = "PRE" if normalized_delivery.startswith("PRE") else "POST"
 
     order_id = str(order_id).strip()
     product_id = str(product_id).strip()
