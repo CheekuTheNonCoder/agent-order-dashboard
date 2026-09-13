@@ -2,7 +2,6 @@ import html
 import os
 import uuid
 import requests
-from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
@@ -19,115 +18,40 @@ from database import (
     get_last_upload,
     get_connection,
 )
-load_dotenv()
-
-from report_sync import sync_reports
+from report_sync import sync_reports, push_cs_delta
 
 REPORT_SYNC_EXECUTOR = ThreadPoolExecutor(max_workers=1)
 
 
-def _report_webhook_url():
-    # Prefer environment/.env, then Streamlit secrets. This keeps the
-    # reporting delta path working in both local Streamlit and deployed runs.
-    url = (
-        os.environ.get("REPORT_SHEET_WEBHOOK_URL")
-        or os.environ.get("REPORTING_WEBHOOK_URL")
-        or ""
-    ).strip()
-    if url:
-        return url
-    try:
-        url = str(st.secrets.get("REPORT_SHEET_WEBHOOK_URL", "")).strip()
-        if url:
-            return url
-        url = str(st.secrets.get("gsheet_webhook_url", "")).strip()
-        if url:
-            return url
-    except Exception:
-        pass
-    return ""
-
-
-def push_cs_report_delta(events):
-    """
-    Send only newly-created unique CS issues to the reporting sheet.
-
-    The PostgreSQL write remains the source of truth. Reporting is best-effort:
-    a webhook failure must never make a successful CS classification fail.
-    """
-    events = [e for e in (events or []) if e]
-    if not events:
-        return {"status": "skipped", "message": "No unique CS issues to report."}
-
-    url = _report_webhook_url()
-    if not url:
-        return {"status": "error", "message": "REPORT_SHEET_WEBHOOK_URL is not configured."}
-
-    try:
-        response = requests.post(
-            url,
-            json={"action": "cs_delta", "events": events},
-            timeout=8,
-            allow_redirects=False,
-        )
-        if response.status_code in (301, 302, 303, 307, 308):
-            return {"status": "success", "message": "CS reporting delta accepted."}
-        response.raise_for_status()
-        try:
-            body = response.json()
-        except ValueError:
-            body = {}
-        if body.get("success"):
-            return {"status": "success", "message": body.get("message", "CS reporting delta applied.")}
-        return {"status": "error", "message": body.get("error", "Apps Script rejected the CS delta.")}
-    except Exception as exc:
-        print(f"[REPORT DELTA WARNING] {exc}")
-        return {"status": "error", "message": str(exc)}
-
-
 def trigger_report_sync(context_label):
-    """
-    Fires the Postgres -> Apps Script -> Google Sheet reporting sync
-    in-process, right after the data that feeds it changes.
-
-    This NEVER blocks or rolls back the action that triggered it -- a
-    reporting failure only ever surfaces as a small warning in the UI.
-    Called after: a CS classification save (normal / Other / refund),
-    an Order Dump upload, and a Ticket Dump upload.
-    """
-    deferred_contexts = {
-        "CS classification",
-        "Other ticket classification",
-        "Refund",
-    }
-    if (
-        context_label in deferred_contexts
-        or context_label == "Order Dump upload"
-        or context_label.lower().endswith("ticket dump upload")
-    ):
-        REPORT_SYNC_EXECUTOR.submit(sync_reports)
-        st.toast("Saved. Google Sheet sync queued.", icon="✅")
-        return
-
+    """Full baseline sync for dump/refund changes only."""
     try:
         result = sync_reports()
     except Exception as e:
-        st.warning(
-            f"⚠️ Reporting sync ({context_label}) hit an unexpected error and was skipped: {e}"
-        )
+        st.warning(f"⚠️ Reporting sync ({context_label}) failed: {e}")
         return
-
     status = result.get("status")
     if status == "success":
         st.toast("📊 Reporting sheet updated.", icon="✅")
     elif status == "unknown":
         st.info(f"ℹ️ Reporting sync ({context_label}): {result.get('message')}")
     else:
-        st.warning(
-            f"⚠️ Reporting sync ({context_label}) failed: {result.get('message')}"
-        )
-    for w in result.get("warnings", []):
-        st.caption(f"Reporting note: {w}")
+        st.warning(f"⚠️ Reporting sync ({context_label}) failed: {result.get('message')}")
+
+
+def trigger_cs_report_delta(events):
+    """Fast path: send only unique CS classification deltas."""
+    if not events:
+        return True
+    try:
+        result = push_cs_delta(events)
+    except Exception as e:
+        st.warning(f"⚠️ CS saved, but reporting delta failed: {e}")
+        return False
+    if result.get("status") == "success":
+        return True
+    st.warning(f"⚠️ CS saved, but reporting update failed: {result.get('message')}")
+    return False
 
 
 # =========================================================
@@ -1884,6 +1808,14 @@ def submit_cs_classification(
         "status": "success",
         "classification_id": classification_id,
         "unique_issue": unique_issue,
+        "order_id": str(db_order_id),
+        "product_id": str(db_product_id),
+        "product": str(product_name or ""),
+        "brand": str(seller or ""),
+        "marketplace": marketplace,
+        "delivery_type": normalized_delivery,
+        "subcategory": subcategory,
+        "classified_at": now.isoformat(),
     }
 
 
@@ -3335,6 +3267,7 @@ if mode == "Agent":
                         )
                     st.success("✅ Other ticket classification saved successfully.")
                     st.session_state.mascot_state = "found"
+                    trigger_report_sync("Other ticket classification")
                 except Exception as e:
                     st.error(f"❌ Classification failed: {e}")
 
@@ -3529,7 +3462,6 @@ if mode == "Agent":
                         submitted = 0
                         duplicates = 0
                         failed = None
-                        report_events = []
 
                         with st.spinner("Saving CS classification..."):
                             for product in selected_cs_products:
@@ -3545,31 +3477,7 @@ if mode == "Agent":
                                         duplicates += 1
                                     else:
                                         submitted += 1
-                                        report_events.append(
-                                            {
-                                                "order_id": str(zop_id),
-                                                "product_id": str(product["product_id"]),
-                                                "product": str(product.get("title") or "Unknown Product"),
-                                                "brand": str(product.get("brand") or "Unknown Brand"),
-                                                "delivery_type": (
-                                                    "PRE"
-                                                    if cs_delivery_type == "Pre Delivery"
-                                                    else "POST"
-                                                ),
-                                                "subcategory": str(cs_subcategory).strip(),
-                                                "marketplace": (
-                                                    "ZOP"
-                                                    if str(zop_id).upper().startswith("ZOP#")
-                                                    else (
-                                                        "AFORA"
-                                                        if str(zop_id).upper().startswith("AFORA#")
-                                                        else "Unmapped"
-                                                    )
-                                                ),
-                                                "agent_email": str(st.session_state.agent_email),
-                                                "classified_at": datetime.now(timezone.utc).isoformat(),
-                                            }
-                                        )
+                                        report_events.append(result)
                                 except Exception as e:
                                     failed = str(e)
                                     break
@@ -3586,15 +3494,8 @@ if mode == "Agent":
                                     f"ℹ️ {duplicates} duplicate issue(s) were recorded but excluded from unique reporting."
                                 )
                             st.session_state.mascot_state = "found"
-                            if report_events:
-                                delta_result = push_cs_report_delta(report_events)
-                                if delta_result.get("status") == "error":
-                                    # Never claim a retry queue exists unless one was actually
-                                    # persisted. The CS save is already committed; expose the
-                                    # real reporting-side error for diagnosis instead.
-                                    st.warning(
-                                        f"⚠️ CS saved, but reporting delta failed: {delta_result.get('message', 'Unknown reporting error')}"
-                                    )
+                            if submitted:
+                                trigger_cs_report_delta(report_events)
 
             # =================================================
             # RAW IDENTIFIERS
