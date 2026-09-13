@@ -298,6 +298,16 @@ st.markdown(
         max-width: 1180px;
     }
 
+    /* Keep the primary search visually centered and easy to scan. */
+    div[data-testid="stTextInput"] {
+        max-width: 860px;
+        margin: 0 auto;
+    }
+    div[data-testid="stButton"] {
+        max-width: 860px;
+        margin: 0 auto;
+    }
+
     /* ---- sidebar ---- */
     section[data-testid="stSidebar"] {
         position: relative;
@@ -970,8 +980,8 @@ def render_cat_companion_widget(context_state="idle"):
   #oos-cat-wrap {{
     position: absolute;
     /* default: upper-left corner of its lane */
-    left: 8px;
-    top: 8px;
+    left: 4px;
+    top: 4px;
     width: 96px;
     height: 108px;
     display: flex;
@@ -1570,7 +1580,7 @@ def render_cat_companion_widget(context_state="idle"):
     # A real, visible box (not 0x0) — width is left unset so Streamlit
     # stretches it to the full column width, giving the cat a wide lane
     # to roam and drag around in without needing to escape its iframe.
-    components.html(widget_html, height=230)
+    components.html(widget_html, height=150)
 
 
 def status_badge(status):
