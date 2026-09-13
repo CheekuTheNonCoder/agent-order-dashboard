@@ -96,6 +96,41 @@ COUPON_TYPE_OPTIONS = [COUPON_TYPE_PLACEHOLDER] + COUPON_TYPES
 
 
 # =========================================================
+# CS CLASSIFICATION
+# =========================================================
+
+CS_DELIVERY_TYPES = ["Pre Delivery", "Post Delivery"]
+
+CS_PRE_SUBCATEGORIES = [
+    "Refund Cancellation",
+    "Order Status Query",
+    "Order Cancellation Request",
+    "Order Modification Request",
+    "RTO Refund",
+    "NDR",
+    "Order Confirmation Issue",
+    "Delay in Delivery",
+    "Need Details",
+    "DNR",
+    "Delay in Shipping",
+]
+
+CS_POST_SUBCATEGORIES = [
+    "Defective Product",
+    "Low Quality Product",
+    "Damaged Product",
+    "Need Details",
+    "Refund Post Delivery",
+    "Wrong Product Delivered",
+    "Missing Items",
+    "Quantity Mismatch",
+    "Colour Issue",
+]
+
+CS_API_URL = st.secrets.get("cs_api_url", "http://localhost:8000").rstrip("/")
+
+
+# =========================================================
 # SESSION
 # =========================================================
 
@@ -1601,6 +1636,30 @@ def stat_card(css_class, label, value):
     )
 
 
+def submit_cs_classification(
+    order_id, product_id, delivery_type, subcategory, agent_email
+):
+    """Save one CS classification through the existing FastAPI CS service."""
+    payload = {
+        "order_id": str(order_id),
+        "product_id": str(product_id),
+        "delivery_type": delivery_type,
+        "subcategory": subcategory,
+        "agent_email": agent_email,
+    }
+
+    try:
+        response = requests.post(
+            f"{CS_API_URL}/cs/classify",
+            json=payload,
+            timeout=15,
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        raise RuntimeError(f"CS service connection failed: {e}")
+
+
 def prepare_refund_payload(refund_rows, agent_email):
     """
     Convert selected refund rows into the clean payload structure that
@@ -1721,15 +1780,11 @@ def append_refunds_to_gsheet(refund_payload):
 
     except requests.exceptions.RequestException as e:
 
-        raise RuntimeError(
-            f"Apps Script connection failed: {str(e)}"
-        )
+        raise RuntimeError(f"Apps Script connection failed: {str(e)}")
 
     except Exception as e:
 
-        raise RuntimeError(
-            f"Refund submission failed: {str(e)}"
-        )
+        raise RuntimeError(f"Refund submission failed: {str(e)}")
 
 
 def prepare_coupon_payload(customer_contact, coupon_type, agent_email, order_id=None):
@@ -2063,6 +2118,114 @@ if mode == "Agent":
             )
 
             render_product_table(results)
+
+            # =================================================
+            # V2 — CS CLASSIFICATION WORKFLOW
+            # =================================================
+
+            st.markdown(
+                '<div class="oos-section-title">📝 Classify Ticket</div>',
+                unsafe_allow_html=True,
+            )
+
+            cs_rows = []
+            for row_position, row in results.reset_index(drop=True).iterrows():
+                cs_rows.append(
+                    {
+                        "row_key": f"{order_id}_{row_position}_{row.get('product_id')}_{row.get('variant_id')}",
+                        "product_id": row.get("product_id"),
+                        "title": row.get("title"),
+                        "brand": row.get("company_name"),
+                        "status": row.get("order_status"),
+                    }
+                )
+
+            with st.container(border=True):
+                st.caption(f"Agent: {st.session_state.agent_email}")
+
+                selected_cs_products = []
+                for product in cs_rows:
+                    label = str(product["title"] or "Unnamed Product")
+                    if product["brand"] not in (None, ""):
+                        label = f"{label} · {product['brand']}"
+
+                    checked = st.checkbox(
+                        label,
+                        key=f"cs_chk_{product['row_key']}",
+                    )
+                    if checked:
+                        selected_cs_products.append(product)
+
+                cs_delivery_type = st.radio(
+                    "Delivery Type",
+                    CS_DELIVERY_TYPES,
+                    horizontal=True,
+                    key=f"cs_delivery_type_{order_id}",
+                )
+
+                subcategory_options = (
+                    CS_POST_SUBCATEGORIES
+                    if cs_delivery_type == "Post Delivery"
+                    else CS_PRE_SUBCATEGORIES
+                )
+
+                cs_subcategory = st.selectbox(
+                    "Subcategory",
+                    ["— Select Subcategory —"] + subcategory_options,
+                    key=f"cs_subcategory_{order_id}",
+                )
+
+                cs_submit = st.button(
+                    "Submit Classification",
+                    type="primary",
+                    use_container_width=True,
+                    disabled=(
+                        len(selected_cs_products) == 0
+                        or cs_subcategory == "— Select Subcategory —"
+                    ),
+                    key=f"cs_submit_{order_id}",
+                )
+
+                if cs_submit:
+                    if not st.session_state.agent_email:
+                        st.error(
+                            "You must be logged in as an agent to classify a ticket."
+                        )
+                    else:
+                        submitted = 0
+                        duplicates = 0
+                        failed = None
+
+                        with st.spinner("Saving CS classification..."):
+                            for product in selected_cs_products:
+                                try:
+                                    result = submit_cs_classification(
+                                        order_id=order_id,
+                                        product_id=product["product_id"],
+                                        delivery_type=cs_delivery_type,
+                                        subcategory=cs_subcategory,
+                                        agent_email=st.session_state.agent_email,
+                                    )
+                                    if result.get("unique_issue") is False:
+                                        duplicates += 1
+                                    else:
+                                        submitted += 1
+                                except Exception as e:
+                                    failed = str(e)
+                                    break
+
+                        if failed:
+                            st.error(f"❌ Classification failed: {failed}")
+                        else:
+                            if submitted:
+                                st.success(
+                                    f"✅ {submitted} classification(s) saved successfully."
+                                )
+                            if duplicates:
+                                st.info(
+                                    f"ℹ️ {duplicates} duplicate issue(s) were recorded but excluded from unique reporting."
+                                )
+                            st.session_state.mascot_state = "found"
 
             # =================================================
             # RAW IDENTIFIERS
