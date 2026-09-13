@@ -2110,6 +2110,8 @@ if mode == "Agent":
 
         if results is not None and not results.empty:
 
+            order_id = str(results.iloc[0].get("zop_order_id") or "")
+
             # STATUS SUMMARY
             # =================================================
 
