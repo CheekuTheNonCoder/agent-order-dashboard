@@ -1722,10 +1722,11 @@ def submit_cs_classification(
                 """
                 SELECT zop_id, product_id, variant_id, title, company_name
                 FROM orders
-                WHERE zop_id = %s AND product_id = %s
+                                WHERE (zop_id = %s OR zop_order_id = %s)
+                                    AND product_id = %s
                 LIMIT 1
                 """,
-                (order_id, product_id),
+                (order_id, order_id, product_id),
             )
             row = cur.fetchone()
             if not row:
