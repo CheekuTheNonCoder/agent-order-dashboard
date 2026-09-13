@@ -1986,46 +1986,6 @@ if mode == "Agent":
         # Streamlit reruns without any Python-side tracking.
         render_cat_companion_widget(get_mascot_state(current_hour))
 
-        # =====================================================
-        # V2 — OTHER CS WORKFLOW
-        # This flow is independent of Order Search. If a ticket has
-        # no Order ID, the agent can classify it directly here.
-        # =====================================================
-
-        st.markdown(
-            '<div class="oos-section-title">🧩 Other Ticket</div>',
-            unsafe_allow_html=True,
-        )
-
-        with st.container(border=True):
-            st.caption(f"Agent: {st.session_state.agent_email}")
-
-            other_subcategory = st.selectbox(
-                "Other Category",
-                ["— Select Category —"] + CS_OTHER_SUBCATEGORIES,
-                key="cs_other_subcategory",
-            )
-
-            other_submit = st.button(
-                "Submit Other Ticket",
-                type="primary",
-                use_container_width=True,
-                disabled=(other_subcategory == "— Select Category —"),
-                key="cs_other_submit",
-            )
-
-            if other_submit:
-                try:
-                    with st.spinner("Saving Other ticket..."):
-                        submit_cs_other(
-                            subcategory=other_subcategory,
-                            agent_email=st.session_state.agent_email,
-                        )
-                    st.success("✅ Other ticket classification saved successfully.")
-                    st.session_state.mascot_state = "found"
-                except Exception as e:
-                    st.error(f"❌ Classification failed: {e}")
-
         # -----------------------------------------------------
         # UNIVERSAL SEARCH
         # -----------------------------------------------------
@@ -2073,6 +2033,45 @@ if mode == "Agent":
                 # reflects the new state right away instead of waiting for
                 # the agent's next click.
                 st.rerun()
+
+        # =====================================================
+        # OTHER CS WORKFLOW
+        # Kept compact and below the primary order search flow.
+        # =====================================================
+
+        with st.expander("🧩 Other Ticket", expanded=False):
+            st.caption(f"No order ID needed · Agent: {st.session_state.agent_email}")
+
+            other_col, submit_col = st.columns([3, 1])
+
+            with other_col:
+                other_subcategory = st.selectbox(
+                    "Other Category",
+                    ["— Select Category —"] + CS_OTHER_SUBCATEGORIES,
+                    key="cs_other_subcategory",
+                    label_visibility="collapsed",
+                )
+
+            with submit_col:
+                other_submit = st.button(
+                    "Submit",
+                    type="primary",
+                    use_container_width=True,
+                    disabled=(other_subcategory == "— Select Category —"),
+                    key="cs_other_submit",
+                )
+
+            if other_submit:
+                try:
+                    with st.spinner("Saving Other ticket..."):
+                        submit_cs_other(
+                            subcategory=other_subcategory,
+                            agent_email=st.session_state.agent_email,
+                        )
+                    st.success("✅ Other ticket classification saved successfully.")
+                    st.session_state.mascot_state = "found"
+                except Exception as e:
+                    st.error(f"❌ Classification failed: {e}")
 
         # -----------------------------------------------------
         # RESULTS DISPLAY
