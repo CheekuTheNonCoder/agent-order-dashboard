@@ -23,6 +23,60 @@ from report_sync import sync_reports
 REPORT_SYNC_EXECUTOR = ThreadPoolExecutor(max_workers=1)
 
 
+def _report_webhook_url():
+    return (
+        os.environ.get("REPORT_SHEET_WEBHOOK_URL")
+        or os.environ.get("REPORTING_WEBHOOK_URL")
+        or ""
+    ).strip()
+
+
+def push_cs_report_delta(events):
+    """
+    Send only newly-created unique CS issues to the reporting sheet.
+
+    The PostgreSQL write remains the source of truth. Reporting is best-effort:
+    a webhook failure must never make a successful CS classification fail.
+    """
+    events = [e for e in (events or []) if e]
+    if not events:
+        return {"status": "skipped", "message": "No unique CS issues to report."}
+
+    url = _report_webhook_url()
+    if not url:
+        return {
+            "status": "error",
+            "message": "REPORT_SHEET_WEBHOOK_URL is not configured.",
+        }
+
+    try:
+        response = requests.post(
+            url,
+            json={"action": "cs_delta", "events": events},
+            timeout=8,
+            allow_redirects=False,
+        )
+        if response.status_code in (301, 302, 303, 307, 308):
+            return {"status": "success", "message": "CS reporting delta accepted."}
+        response.raise_for_status()
+        try:
+            body = response.json()
+        except ValueError:
+            body = {}
+        if body.get("success"):
+            return {
+                "status": "success",
+                "message": body.get("message", "CS reporting delta applied."),
+            }
+        return {
+            "status": "error",
+            "message": body.get("error", "Apps Script rejected the CS delta."),
+        }
+    except Exception as exc:
+        print(f"[REPORT DELTA WARNING] {exc}")
+        return {"status": "error", "message": str(exc)}
+
+
 def trigger_report_sync(context_label):
     """
     Fires the Postgres -> Apps Script -> Google Sheet reporting sync
@@ -38,7 +92,11 @@ def trigger_report_sync(context_label):
         "Other ticket classification",
         "Refund",
     }
-    if context_label in deferred_contexts:
+    if (
+        context_label in deferred_contexts
+        or context_label == "Order Dump upload"
+        or context_label.lower().endswith("ticket dump upload")
+    ):
         REPORT_SYNC_EXECUTOR.submit(sync_reports)
         st.toast("Saved. Google Sheet sync queued.", icon="✅")
         return
@@ -3269,7 +3327,6 @@ if mode == "Agent":
                         )
                     st.success("✅ Other ticket classification saved successfully.")
                     st.session_state.mascot_state = "found"
-                    trigger_report_sync("Other ticket classification")
                 except Exception as e:
                     st.error(f"❌ Classification failed: {e}")
 
@@ -3464,6 +3521,7 @@ if mode == "Agent":
                         submitted = 0
                         duplicates = 0
                         failed = None
+                        report_events = []
 
                         with st.spinner("Saving CS classification..."):
                             for product in selected_cs_products:
@@ -3479,6 +3537,50 @@ if mode == "Agent":
                                         duplicates += 1
                                     else:
                                         submitted += 1
+                                        report_events.append(
+                                            {
+                                                "order_id": str(zop_id),
+                                                "product_id": str(
+                                                    product["product_id"]
+                                                ),
+                                                "product": str(
+                                                    product.get("title")
+                                                    or "Unknown Product"
+                                                ),
+                                                "brand": str(
+                                                    product.get("brand")
+                                                    or "Unknown Brand"
+                                                ),
+                                                "delivery_type": (
+                                                    "PRE"
+                                                    if cs_delivery_type
+                                                    == "Pre Delivery"
+                                                    else "POST"
+                                                ),
+                                                "subcategory": str(
+                                                    cs_subcategory
+                                                ).strip(),
+                                                "marketplace": (
+                                                    "ZOP"
+                                                    if str(zop_id)
+                                                    .upper()
+                                                    .startswith("ZOP#")
+                                                    else (
+                                                        "AFORA"
+                                                        if str(zop_id)
+                                                        .upper()
+                                                        .startswith("AFORA#")
+                                                        else "Unmapped"
+                                                    )
+                                                ),
+                                                "agent_email": str(
+                                                    st.session_state.agent_email
+                                                ),
+                                                "classified_at": datetime.now(
+                                                    timezone.utc
+                                                ).isoformat(),
+                                            }
+                                        )
                                 except Exception as e:
                                     failed = str(e)
                                     break
@@ -3495,8 +3597,12 @@ if mode == "Agent":
                                     f"ℹ️ {duplicates} duplicate issue(s) were recorded but excluded from unique reporting."
                                 )
                             st.session_state.mascot_state = "found"
-                            if submitted:
-                                trigger_report_sync("CS classification")
+                            if report_events:
+                                delta_result = push_cs_report_delta(report_events)
+                                if delta_result.get("status") == "error":
+                                    st.caption(
+                                        "⚠️ CS saved. Reporting update is queued for retry/manual sync."
+                                    )
 
             # =================================================
             # RAW IDENTIFIERS
