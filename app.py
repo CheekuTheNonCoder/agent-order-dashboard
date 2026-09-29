@@ -4407,14 +4407,32 @@ else:
                 else:
                     with st.spinner("Looking up orders..."):
                         found = search_orders_by_ids(order_ids)
-                    requested = set(order_ids)
-                    found_ids = (
-                        set(found["zop_order_id"].astype(str).str.strip())
-                        if not found.empty
-                        else set()
-                    )
+
+                    # An input ID is "found" if it appears in ANY identifier column
+                    # (zop_order_id / zop_id / seller_order_id / awb) — same fields
+                    # the lookup query searches.
+                    requested_upper = {x.strip().upper() for x in order_ids}
+                    if not found.empty:
+                        matched_tokens = set()
+                        for col in ("zop_order_id", "zop_id", "seller_order_id", "awb"):
+                            if col in found.columns:
+                                matched_tokens |= set(
+                                    found[col]
+                                    .astype(str)
+                                    .str.strip()
+                                    .str.upper()
+                                    .tolist()
+                                )
+                        missing = sorted(
+                            x
+                            for x in order_ids
+                            if x.strip().upper() not in matched_tokens
+                        )
+                    else:
+                        missing = list(order_ids)
+
                     st.session_state.bulk_refund_found_df = found
-                    st.session_state.bulk_refund_missing = sorted(requested - found_ids)
+                    st.session_state.bulk_refund_missing = missing
                     st.session_state.bulk_refund_reason_locked = bulk_reason
                     st.session_state.bulk_refund_agent_locked = bulk_agent_email.strip()
                     st.session_state.bulk_refund_rows = build_bulk_refund_rows(
