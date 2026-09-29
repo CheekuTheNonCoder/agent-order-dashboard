@@ -302,27 +302,41 @@ def search_orders(search_value):
 
 
 def search_orders_by_ids(order_ids):
-    """Exact match on zop_order_id for a list of IDs."""
+    """
+    Match a list of pasted IDs against zop_order_id, zop_id, seller_order_id, or awb.
+    Case-insensitive exact match (trim). Same fields the Agent universal search uses.
+    Returns every product line for matching orders.
+    """
     cleaned = []
     for value in order_ids:
         text = str(value).strip()
-        if text and text.lower() != "nan":
+        if text and text.lower() not in ("nan", "none", ""):
             cleaned.append(text)
     cleaned = list(dict.fromkeys(cleaned))
     if not cleaned:
         return pd.DataFrame()
 
+    # Case-insensitive exact match on any of the identifier columns.
+    # Using UPPER(...) = ANY(UPPER array) so "zop#123" matches "ZOP#123".
     query = """
         SELECT
             order_created_at, zop_order_id, zop_id, seller_order_id,
             company_id, company_name, sr_channel_id, order_status, awb,
             variant_id, product_id, quantity, title, final_price
         FROM orders
-        WHERE CAST(zop_order_id AS TEXT) = ANY(%s)
+        WHERE UPPER(TRIM(CAST(zop_order_id AS TEXT))) = ANY(%s)
+           OR UPPER(TRIM(CAST(zop_id AS TEXT))) = ANY(%s)
+           OR UPPER(TRIM(CAST(seller_order_id AS TEXT))) = ANY(%s)
+           OR UPPER(TRIM(CAST(awb AS TEXT))) = ANY(%s)
         ORDER BY zop_order_id, order_created_at DESC NULLS LAST
     """
+    upper_ids = [x.upper() for x in cleaned]
     with get_connection() as conn:
-        return pd.read_sql_query(query, conn, params=[cleaned])
+        return pd.read_sql_query(
+            query,
+            conn,
+            params=[upper_ids, upper_ids, upper_ids, upper_ids],
+        )
 
 
 def search_orders_by_status_and_date(statuses, start_date, end_date):
