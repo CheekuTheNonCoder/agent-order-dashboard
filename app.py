@@ -2284,15 +2284,36 @@ def prepare_refund_payload(refund_rows, agent_email):
     payload = []
 
     for row in refund_rows:
+        channel_id = row.get("sr_channel_id")
+        order_id = row.get("zop_order_id")
+        variant_id = row.get("variant_id")
+
+        # Force plain Python scalars (no numpy/pandas types) for JSON.
+        if channel_id is not None and not isinstance(channel_id, str):
+            channel_id = str(channel_id)
+        if order_id is not None and not isinstance(order_id, str):
+            order_id = str(order_id)
+        if variant_id is not None and not isinstance(variant_id, str):
+            variant_id = str(variant_id)
+
+        try:
+            qty = int(row.get("quantity"))
+        except (TypeError, ValueError):
+            qty = 1
+        try:
+            amt = float(row.get("amount"))
+        except (TypeError, ValueError):
+            amt = 0.0
+
         payload.append(
             {
-                "channel_id": row.get("sr_channel_id"),
-                "order_id": row.get("zop_order_id"),
-                "variant_id": row.get("variant_id"),
-                "quantity": int(row.get("quantity")),
-                "amount": float(row.get("amount")),
-                "refund_reason": row.get("refund_reason"),
-                "agent_email": agent_email,
+                "channel_id": channel_id,
+                "order_id": order_id,
+                "variant_id": variant_id,
+                "quantity": qty,
+                "amount": amt,
+                "refund_reason": str(row.get("refund_reason") or ""),
+                "agent_email": str(agent_email or ""),
             }
         )
 
@@ -2327,27 +2348,42 @@ def append_refunds_to_gsheet(refund_payload):
             for key, value in row.items():
 
                 # Convert pandas / numpy missing values safely
-                if pd.isna(value):
+                if value is None:
                     clean_row[key] = None
-
+                elif isinstance(value, float) and pd.isna(value):
+                    clean_row[key] = None
+                elif pd.isna(value) if not isinstance(value, (str, int, float, bool, list, dict)) else False:
+                    clean_row[key] = None
                 elif hasattr(value, "item"):
                     try:
                         clean_row[key] = value.item()
                     except Exception:
                         clean_row[key] = str(value)
-
                 else:
                     clean_row[key] = value
+
+            # Always send IDs as strings — Apps Script / sheet expect text.
+            for id_key in ("channel_id", "order_id", "variant_id", "agent_email", "refund_reason"):
+                if clean_row.get(id_key) is not None:
+                    clean_row[id_key] = str(clean_row[id_key])
 
             clean_row["submission_id"] = submission_id
             payload.append(clean_row)
 
-        try:
+        if not payload:
+            return {
+                "status": "error",
+                "submission_id": submission_id,
+                "message": "No refund rows to send.",
+                "row_count": 0,
+            }
 
+        try:
+            # Bulk can be larger — give Apps Script more time to respond.
             response = requests.post(
                 webhook_url,
                 json=payload,
-                timeout=30,
+                timeout=90,
             )
 
         except requests.exceptions.ReadTimeout:
@@ -2361,8 +2397,10 @@ def append_refunds_to_gsheet(refund_payload):
                 "submission_id": submission_id,
                 "message": (
                     "Google Sheet may already have received the refund. "
-                    "Please do not submit again."
+                    "Please do not submit again. Check the sheet for submission_id: "
+                    + submission_id
                 ),
+                "row_count": len(payload),
             }
 
         response.raise_for_status()
@@ -2370,14 +2408,19 @@ def append_refunds_to_gsheet(refund_payload):
         try:
             res_json = response.json()
         except ValueError:
-            res_json = {}
+            res_json = {"raw": response.text[:500]}
 
         if res_json.get("status") == "success":
 
             return {
                 "status": "success",
                 "submission_id": submission_id,
-                "message": "Refund successfully added to Google Sheet.",
+                "message": res_json.get(
+                    "message",
+                    "Refund successfully added to Google Sheet.",
+                ),
+                "row_count": len(payload),
+                "gsheet_response": res_json,
             }
 
         return {
@@ -2385,8 +2428,11 @@ def append_refunds_to_gsheet(refund_payload):
             "submission_id": submission_id,
             "message": res_json.get(
                 "message",
-                "Google Apps Script returned an unexpected response.",
+                "Google Apps Script returned an unexpected response: "
+                + str(res_json)[:400],
             ),
+            "row_count": len(payload),
+            "gsheet_response": res_json,
         }
 
     except requests.exceptions.RequestException as e:
@@ -2396,6 +2442,7 @@ def append_refunds_to_gsheet(refund_payload):
     except Exception as e:
 
         raise RuntimeError(f"Refund submission failed: {str(e)}")
+
 
 
 def prepare_coupon_payload(customer_contact, coupon_type, agent_email, order_id=None):
@@ -2590,8 +2637,9 @@ def _render_bulk_refund_preview_and_submit():
         if "zop_order_id" in found_df.columns
         else 0
     )
-    st.success(
-        f"Found **{n_orders:,}** order(s) · **{len(found_df):,}** product line(s) ready to refund."
+    st.info(
+        f"📋 Preview: **{n_orders:,}** order(s) · **{len(found_df):,}** product line(s). "
+        f"Neeche confirm karke **Confirm & Lock Bulk Refund** dabao — tabhi sheet mein jayega."
     )
     if missing:
         st.warning(
@@ -2640,10 +2688,35 @@ def _render_bulk_refund_preview_and_submit():
         refund_payload = prepare_refund_payload(bulk_rows, agent_email)
 
         try:
+            # Debug: show exact payload about to be sent
+            with st.expander(
+                "🔎 Payload being sent to Google Sheet (debug)", expanded=True
+            ):
+                st.write(
+                    f"**Rows:** {len(refund_payload)} · **Agent:** {agent_email}"
+                )
+                st.json(refund_payload[:5])
+                if len(refund_payload) > 5:
+                    st.caption(f"... and {len(refund_payload) - 5} more rows")
+
             with st.spinner(
                 f"Sending {len(refund_payload):,} refund row(s) to Google Sheet..."
             ):
                 refund_result = append_refunds_to_gsheet(refund_payload)
+
+            # Debug: always show raw webhook result
+            with st.expander(
+                "📡 Google Apps Script response (debug)", expanded=True
+            ):
+                st.json(
+                    {
+                        "status": refund_result.get("status"),
+                        "submission_id": refund_result.get("submission_id"),
+                        "row_count": refund_result.get("row_count"),
+                        "message": refund_result.get("message"),
+                        "gsheet_response": refund_result.get("gsheet_response"),
+                    }
+                )
 
             cs_ok = 0
             cs_dup = 0
@@ -2651,10 +2724,13 @@ def _render_bulk_refund_preview_and_submit():
 
             if refund_result.get("status") == "success":
                 for refund_row in bulk_rows:
-                    mapping = REFUND_REASON_CS_MAPPING.get(refund_row["refund_reason"])
+                    mapping = REFUND_REASON_CS_MAPPING.get(
+                        refund_row["refund_reason"]
+                    )
                     if not mapping:
                         cs_fail = (
-                            f"No CS mapping for reason: {refund_row['refund_reason']}"
+                            f"No CS mapping for reason: "
+                            f"{refund_row['refund_reason']}"
                         )
                         break
                     delivery_type, subcategory = mapping
@@ -2674,7 +2750,17 @@ def _render_bulk_refund_preview_and_submit():
                         break
 
                 st.success(
-                    f"🎉 Bulk refund submitted — {len(refund_payload):,} row(s) written to Google Sheet."
+                    f"🎉 Webhook returned SUCCESS — "
+                    f"{refund_result.get('row_count', len(refund_payload)):,} row(s). "
+                    f"submission_id: `{refund_result.get('submission_id')}`"
+                )
+                st.warning(
+                    "Agar sheet mein rows **nahi** dikh rahi to ye dashboard bug nahi hai — "
+                    "Google Apps Script / spreadsheet side check karo:\n"
+                    "1) Sahi spreadsheet + tab kholo (jahan agent single-refund rows padti hain)\n"
+                    "2) Apps Script → **Executions** mein is submission_id / time ko dekho\n"
+                    "3) Agent mode se **1 product ka single refund** try karo — "
+                    "agar single bhi sheet mein nahi jaata to problem `gsheet_webhook_url` / GAS script mein hai"
                 )
                 trigger_report_sync("Bulk Refund")
                 if cs_fail:
@@ -2682,17 +2768,25 @@ def _render_bulk_refund_preview_and_submit():
                         f"Refunds submitted, but CS classification stopped: {cs_fail}"
                     )
                 elif cs_ok:
-                    st.info(f"📝 {cs_ok} refund CS classification(s) recorded.")
+                    st.info(
+                        f"📝 {cs_ok} refund CS classification(s) recorded."
+                    )
                     if cs_dup:
                         st.caption(
                             f"{cs_dup} repeated issue(s) excluded from unique reporting."
                         )
             elif refund_result.get("status") == "unknown":
                 st.warning(
-                    "⚠️ Refund status unknown (timeout). Do **not** submit again — check the sheet first."
+                    "⚠️ Refund status unknown (timeout / unexpected GAS response). "
+                    "Do **not** submit again — check the sheet first.\n\n"
+                    f"submission_id: `{refund_result.get('submission_id')}`\n"
+                    f"Details: {refund_result.get('message', '')}"
                 )
             else:
-                st.error(refund_result.get("message", "Unexpected refund response."))
+                st.error(
+                    refund_result.get("message", "Unexpected refund response.")
+                    + f" | submission_id: {refund_result.get('submission_id')}"
+                )
 
             _clear_bulk_refund_session()
 
