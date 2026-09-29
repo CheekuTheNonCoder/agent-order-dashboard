@@ -14,6 +14,10 @@ from database import (
     initialize_database,
     replace_orders,
     search_orders,
+    search_orders_by_ids,
+    search_orders_by_status_and_date,
+    search_orders_by_zop_and_channel,
+    get_distinct_order_statuses,
     get_order_count,
     get_last_upload,
     get_connection,
@@ -2441,6 +2445,261 @@ def submit_special_coupon(coupon_payload):
         raise RuntimeError(f"Apps Script Connection Failed: {str(e)}")
 
 
+
+# =========================================================
+# BULK REFUND HELPERS
+# =========================================================
+
+
+def _parse_bulk_order_ids(raw_text):
+    if not raw_text or not str(raw_text).strip():
+        return []
+    parts = []
+    for chunk in str(raw_text).replace(",", "\n").replace(";", "\n").split():
+        token = chunk.strip()
+        if token:
+            parts.append(token)
+    return list(dict.fromkeys(parts))
+
+
+def _read_bulk_order_id_file(uploaded_file):
+    name = uploaded_file.name.lower()
+    df = pd.read_csv(uploaded_file) if name.endswith(".csv") else pd.read_excel(uploaded_file)
+    df.columns = [str(c).strip() for c in df.columns]
+    normalized = {"".join(ch.lower() for ch in c if ch.isalnum()): c for c in df.columns}
+    order_col = None
+    for candidate in ("zoporderid", "orderid", "zop_order_id", "order_id", "order", "id"):
+        key = "".join(ch.lower() for ch in candidate if ch.isalnum())
+        if key in normalized:
+            order_col = normalized[key]
+            break
+    if order_col is None:
+        order_col = df.columns[0]
+    return (
+        df[order_col]
+        .astype(str)
+        .str.strip()
+        .replace({"nan": "", "None": ""})
+        .tolist()
+    )
+
+
+def _read_zop_channel_file(uploaded_file):
+    """
+    Col1 = zop_id, Col2 = sr_channel_id (headers optional / flexible).
+    Returns list of (zop_id, sr_channel_id).
+    """
+    name = uploaded_file.name.lower()
+    df = pd.read_csv(uploaded_file) if name.endswith(".csv") else pd.read_excel(uploaded_file)
+    df.columns = [str(c).strip() for c in df.columns]
+
+    if len(df.columns) < 2:
+        raise ValueError("File must have at least 2 columns: zop_id and sr_channel_id.")
+
+    normalized = {"".join(ch.lower() for ch in c if ch.isalnum()): c for c in df.columns}
+
+    zop_col = None
+    channel_col = None
+    for candidate in ("zopid", "zop_id", "zop"):
+        key = "".join(ch.lower() for ch in candidate if ch.isalnum())
+        if key in normalized:
+            zop_col = normalized[key]
+            break
+    for candidate in (
+        "srchannelid",
+        "sr_channel_id",
+        "channelid",
+        "channel_id",
+        "channel",
+    ):
+        key = "".join(ch.lower() for ch in candidate if ch.isalnum())
+        if key in normalized:
+            channel_col = normalized[key]
+            break
+
+    if zop_col is None:
+        zop_col = df.columns[0]
+    if channel_col is None:
+        channel_col = df.columns[1]
+
+    pairs = []
+    for _, row in df.iterrows():
+        z = str(row[zop_col]).strip() if pd.notna(row[zop_col]) else ""
+        c = str(row[channel_col]).strip() if pd.notna(row[channel_col]) else ""
+        if z and c and z.lower() != "nan" and c.lower() != "nan":
+            pairs.append((z, c))
+    return list(dict.fromkeys(pairs))
+
+
+def build_bulk_refund_rows(orders_df, refund_reason):
+    """One refund line per product row — full qty + final_price."""
+    rows = []
+    for _, row in orders_df.iterrows():
+        try:
+            qty = int(row["quantity"]) if pd.notna(row["quantity"]) else 1
+        except (TypeError, ValueError):
+            qty = 1
+        try:
+            amount = float(row["final_price"]) if pd.notna(row["final_price"]) else 0.0
+        except (TypeError, ValueError):
+            amount = 0.0
+
+        rows.append(
+            {
+                "sr_channel_id": row.get("sr_channel_id"),
+                "zop_order_id": row.get("zop_order_id"),
+                "product_id": row.get("product_id"),
+                "variant_id": row.get("variant_id"),
+                "title": row.get("title"),
+                "company_name": row.get("company_name"),
+                "quantity": max(qty, 1),
+                "amount": amount,
+                "refund_reason": refund_reason,
+            }
+        )
+    return rows
+
+
+def _clear_bulk_refund_session():
+    for k in (
+        "bulk_refund_found_df",
+        "bulk_refund_missing",
+        "bulk_refund_rows",
+        "bulk_refund_reason_locked",
+        "bulk_refund_agent_locked",
+        "bulk_refund_mode",
+    ):
+        st.session_state.pop(k, None)
+
+
+def _render_bulk_refund_preview_and_submit():
+    """Shared preview + confirm + submit for all bulk modes."""
+    found_df = st.session_state.get("bulk_refund_found_df")
+    missing = st.session_state.get("bulk_refund_missing", [])
+    bulk_rows = st.session_state.get("bulk_refund_rows")
+
+    if found_df is None:
+        return
+
+    if found_df.empty:
+        st.error("No matching product rows found in the database.")
+        return
+
+    n_orders = (
+        found_df["zop_order_id"].nunique()
+        if "zop_order_id" in found_df.columns
+        else 0
+    )
+    st.success(
+        f"Found **{n_orders:,}** order(s) · **{len(found_df):,}** product line(s) ready to refund."
+    )
+    if missing:
+        st.warning(
+            f"**{len(missing)}** input row(s) had no DB match: "
+            + ", ".join(str(m) for m in missing[:25])
+            + ("…" if len(missing) > 25 else "")
+        )
+
+    preview_cols = [
+        c
+        for c in [
+            "zop_order_id",
+            "zop_id",
+            "sr_channel_id",
+            "company_name",
+            "title",
+            "variant_id",
+            "quantity",
+            "final_price",
+            "order_status",
+        ]
+        if c in found_df.columns
+    ]
+    st.dataframe(found_df[preview_cols], use_container_width=True, hide_index=True)
+
+    st.info(
+        f"Each line → full qty & final_price · reason "
+        f"**{st.session_state.bulk_refund_reason_locked}** · agent "
+        f"**{st.session_state.bulk_refund_agent_locked}**."
+    )
+
+    confirm = st.checkbox(
+        "I confirm these refunds should be locked into the Google Sheet queue.",
+        key="bulk_refund_confirm_chk",
+    )
+    submit = st.button(
+        "🔒 Confirm & Lock Bulk Refund",
+        type="primary",
+        use_container_width=True,
+        disabled=not confirm or not bulk_rows,
+        key="bulk_refund_submit_btn",
+    )
+
+    if submit and confirm and bulk_rows:
+        agent_email = st.session_state.bulk_refund_agent_locked
+        refund_payload = prepare_refund_payload(bulk_rows, agent_email)
+
+        try:
+            with st.spinner(
+                f"Sending {len(refund_payload):,} refund row(s) to Google Sheet..."
+            ):
+                refund_result = append_refunds_to_gsheet(refund_payload)
+
+            cs_ok = 0
+            cs_dup = 0
+            cs_fail = None
+
+            if refund_result.get("status") == "success":
+                for refund_row in bulk_rows:
+                    mapping = REFUND_REASON_CS_MAPPING.get(refund_row["refund_reason"])
+                    if not mapping:
+                        cs_fail = (
+                            f"No CS mapping for reason: {refund_row['refund_reason']}"
+                        )
+                        break
+                    delivery_type, subcategory = mapping
+                    try:
+                        cs_result = submit_cs_classification(
+                            order_id=refund_row["zop_order_id"],
+                            product_id=refund_row["product_id"],
+                            delivery_type=delivery_type,
+                            subcategory=subcategory,
+                            agent_email=agent_email,
+                        )
+                        cs_ok += 1
+                        if cs_result.get("unique_issue") is False:
+                            cs_dup += 1
+                    except Exception as cs_error:
+                        cs_fail = str(cs_error)
+                        break
+
+                st.success(
+                    f"🎉 Bulk refund submitted — {len(refund_payload):,} row(s) written to Google Sheet."
+                )
+                trigger_report_sync("Bulk Refund")
+                if cs_fail:
+                    st.warning(
+                        f"Refunds submitted, but CS classification stopped: {cs_fail}"
+                    )
+                elif cs_ok:
+                    st.info(f"📝 {cs_ok} refund CS classification(s) recorded.")
+                    if cs_dup:
+                        st.caption(
+                            f"{cs_dup} repeated issue(s) excluded from unique reporting."
+                        )
+            elif refund_result.get("status") == "unknown":
+                st.warning(
+                    "⚠️ Refund status unknown (timeout). Do **not** submit again — check the sheet first."
+                )
+            else:
+                st.error(refund_result.get("message", "Unexpected refund response."))
+
+            _clear_bulk_refund_session()
+
+        except Exception as e:
+            st.error(f"❌ Bulk refund failed: {e}")
+
+
 # =========================================================
 # REPORTS
 # =========================================================
@@ -4067,6 +4326,235 @@ else:
             )
 
             c3.markdown(id_card("Last Upload", "No upload yet"), unsafe_allow_html=True)
+
+        # =================================================
+        # BULK REFUND
+        # =================================================
+
+        st.markdown(
+            '<div class="oos-section-title">💸 Bulk Refund</div>',
+            unsafe_allow_html=True,
+        )
+        st.caption(
+            "Queue many refunds at once. Payload is identical to the Agent Refund flow "
+            "(channel_id, order_id, variant_id, quantity, amount, refund_reason, agent_email)."
+        )
+
+        bulk_reason = st.selectbox(
+            "Refund Reason (applied to every line)",
+            REFUND_REASON_OPTIONS,
+            key="bulk_refund_reason",
+        )
+        bulk_agent_email = st.text_input(
+            "Agent Email (recorded on each refund row)",
+            placeholder="ops@company.com",
+            key="bulk_refund_agent_email",
+        )
+
+        mode_tab1, mode_tab2, mode_tab3 = st.tabs(
+            [
+                "① Order IDs",
+                "② Status + Date Range",
+                "③ Sheet: zop_id + sr_channel_id",
+            ]
+        )
+
+        # ---------- Mode 1: Order IDs ----------
+        with mode_tab1:
+            st.caption(
+                "Paste Order IDs or upload a single-column file of zop_order_id values."
+            )
+            sub1, sub2 = st.tabs(["Paste", "Upload file"])
+            order_ids = []
+            with sub1:
+                text = st.text_area(
+                    "Order IDs (one per line or comma-separated)",
+                    placeholder="ZOP#12345\nZOP#67890",
+                    height=120,
+                    key="bulk_ids_text",
+                )
+                if text.strip():
+                    order_ids = _parse_bulk_order_ids(text)
+            with sub2:
+                f = st.file_uploader(
+                    "CSV / Excel (Order ID column)",
+                    type=["csv", "xlsx", "xls"],
+                    key="bulk_ids_file",
+                )
+                if f is not None:
+                    try:
+                        order_ids = [
+                            x
+                            for x in _read_bulk_order_id_file(f)
+                            if x and str(x).lower() != "nan"
+                        ]
+                        order_ids = list(dict.fromkeys(order_ids))
+                        st.write(f"**{len(order_ids):,}** Order ID(s) from file.")
+                    except Exception as e:
+                        st.error(f"Could not read file: {e}")
+
+            if st.button(
+                "🔍 Lookup by Order ID",
+                type="primary",
+                use_container_width=True,
+                disabled=len(order_ids) == 0,
+                key="bulk_lookup_ids_btn",
+            ):
+                if bulk_reason == REFUND_REASON_PLACEHOLDER:
+                    st.warning("Select a refund reason.")
+                elif not bulk_agent_email.strip() or "@" not in bulk_agent_email:
+                    st.warning("Enter a valid agent email.")
+                else:
+                    with st.spinner("Looking up orders..."):
+                        found = search_orders_by_ids(order_ids)
+                    requested = set(order_ids)
+                    found_ids = (
+                        set(found["zop_order_id"].astype(str).str.strip())
+                        if not found.empty
+                        else set()
+                    )
+                    st.session_state.bulk_refund_found_df = found
+                    st.session_state.bulk_refund_missing = sorted(requested - found_ids)
+                    st.session_state.bulk_refund_reason_locked = bulk_reason
+                    st.session_state.bulk_refund_agent_locked = bulk_agent_email.strip()
+                    st.session_state.bulk_refund_rows = build_bulk_refund_rows(
+                        found, bulk_reason
+                    )
+                    st.session_state.bulk_refund_mode = "order_ids"
+
+        # ---------- Mode 2: Status + Date Range ----------
+        with mode_tab2:
+            st.caption(
+                "Select status(es) and a date range. Every product line in that window "
+                "with those statuses is queued for refund."
+            )
+            try:
+                status_options = get_distinct_order_statuses()
+            except Exception:
+                status_options = [
+                    "Delivered",
+                    "Cancelled",
+                    "In Transit",
+                    "Pending",
+                    "RTO",
+                ]
+
+            selected_statuses = st.multiselect(
+                "Order Status",
+                options=status_options,
+                key="bulk_status_multiselect",
+            )
+            d1, d2 = st.columns(2)
+            with d1:
+                start_date = st.date_input(
+                    "From date",
+                    value=datetime.now(ZoneInfo("Asia/Kolkata")).date(),
+                    key="bulk_status_start_date",
+                )
+            with d2:
+                end_date = st.date_input(
+                    "To date",
+                    value=datetime.now(ZoneInfo("Asia/Kolkata")).date(),
+                    key="bulk_status_end_date",
+                )
+
+            if st.button(
+                "🔍 Lookup by Status + Date",
+                type="primary",
+                use_container_width=True,
+                disabled=len(selected_statuses) == 0,
+                key="bulk_lookup_status_btn",
+            ):
+                if bulk_reason == REFUND_REASON_PLACEHOLDER:
+                    st.warning("Select a refund reason.")
+                elif not bulk_agent_email.strip() or "@" not in bulk_agent_email:
+                    st.warning("Enter a valid agent email.")
+                elif end_date < start_date:
+                    st.warning("End date must be on or after start date.")
+                else:
+                    with st.spinner("Looking up orders by status and date..."):
+                        found = search_orders_by_status_and_date(
+                            selected_statuses, start_date, end_date
+                        )
+                    st.session_state.bulk_refund_found_df = found
+                    st.session_state.bulk_refund_missing = []
+                    st.session_state.bulk_refund_reason_locked = bulk_reason
+                    st.session_state.bulk_refund_agent_locked = bulk_agent_email.strip()
+                    st.session_state.bulk_refund_rows = build_bulk_refund_rows(
+                        found, bulk_reason
+                    )
+                    st.session_state.bulk_refund_mode = "status_date"
+
+        # ---------- Mode 3: zop_id + sr_channel_id sheet ----------
+        with mode_tab3:
+            st.caption(
+                "Upload a sheet: **Column 1 = zop_id**, **Column 2 = sr_channel_id**. "
+                "Every product row matching both fields is refunded "
+                "(if one channel has multiple products, all of them are included)."
+            )
+            channel_file = st.file_uploader(
+                "CSV / Excel (zop_id, sr_channel_id)",
+                type=["csv", "xlsx", "xls"],
+                key="bulk_zop_channel_file",
+            )
+            pairs = []
+            if channel_file is not None:
+                try:
+                    pairs = _read_zop_channel_file(channel_file)
+                    st.write(
+                        f"**{len(pairs):,}** unique (zop_id, sr_channel_id) pair(s) from file."
+                    )
+                    if pairs:
+                        st.dataframe(
+                            pd.DataFrame(
+                                pairs, columns=["zop_id", "sr_channel_id"]
+                            ).head(15),
+                            use_container_width=True,
+                            hide_index=True,
+                        )
+                except Exception as e:
+                    st.error(f"Could not read file: {e}")
+
+            if st.button(
+                "🔍 Lookup by zop_id + sr_channel_id",
+                type="primary",
+                use_container_width=True,
+                disabled=len(pairs) == 0,
+                key="bulk_lookup_channel_btn",
+            ):
+                if bulk_reason == REFUND_REASON_PLACEHOLDER:
+                    st.warning("Select a refund reason.")
+                elif not bulk_agent_email.strip() or "@" not in bulk_agent_email:
+                    st.warning("Enter a valid agent email.")
+                else:
+                    with st.spinner("Matching zop_id + sr_channel_id in database..."):
+                        found = search_orders_by_zop_and_channel(pairs)
+
+                    if not found.empty:
+                        matched = set(
+                            zip(
+                                found["zop_id"].astype(str).str.strip(),
+                                found["sr_channel_id"].astype(str).str.strip(),
+                            )
+                        )
+                    else:
+                        matched = set()
+                    missing_pairs = [p for p in pairs if p not in matched]
+
+                    st.session_state.bulk_refund_found_df = found
+                    st.session_state.bulk_refund_missing = [
+                        f"{z}|{c}" for z, c in missing_pairs
+                    ]
+                    st.session_state.bulk_refund_reason_locked = bulk_reason
+                    st.session_state.bulk_refund_agent_locked = bulk_agent_email.strip()
+                    st.session_state.bulk_refund_rows = build_bulk_refund_rows(
+                        found, bulk_reason
+                    )
+                    st.session_state.bulk_refund_mode = "zop_channel"
+
+        # Shared preview + submit (any mode)
+        _render_bulk_refund_preview_and_submit()
+
 
         # =================================================
         # TICKET DUMPS
