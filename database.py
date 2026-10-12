@@ -44,9 +44,12 @@ def _get_pool():
     return ConnectionPool(
         get_database_url(),
         min_size=1,
-        max_size=5,
+        max_size=8,          # slightly higher for concurrent agents
         kwargs={"prepare_threshold": None},
         open=True,
+        # Keep connections warm so first query after idle is still fast
+        max_idle=300,
+        max_lifetime=3600,
     )
 
 
@@ -233,22 +236,23 @@ def replace_orders(df, file_name):
         conn.commit()
 
     # =====================================================
-    # INVALIDATE CACHED ADMIN STATS
+    # INVALIDATE CACHED ADMIN STATS + SEARCH CACHES
     # =====================================================
-    # get_order_count() and get_last_upload() are cached below (see
-    # their @st.cache_data decorators) so the Admin panel doesn't hit
-    # the database on every rerun. Clearing them here means the
-    # Control Center reflects this upload immediately instead of
-    # waiting out the cache TTL.
     get_order_count.clear()
     get_last_upload.clear()
+    search_orders.clear()
+    search_orders_by_ids.clear()
+    search_orders_by_status_and_date.clear()
+    search_orders_by_zop_and_channel.clear()
+    get_distinct_order_statuses.clear()
 
 
 # =========================================================
-# UNIVERSAL SEARCH
+# UNIVERSAL SEARCH  (cached – biggest speed win for agents)
 # =========================================================
 
 
+@st.cache_data(ttl=120, show_spinner=False)
 def search_orders(search_value):
     search_value = str(search_value).strip()
 
@@ -297,10 +301,11 @@ def search_orders(search_value):
 
 
 # =========================================================
-# BULK REFUND LOOKUPS
+# BULK REFUND LOOKUPS  (also cached)
 # =========================================================
 
 
+@st.cache_data(ttl=120, show_spinner=False)
 def search_orders_by_ids(order_ids):
     """
     Match a list of pasted IDs against zop_order_id, zop_id, seller_order_id, or awb.
@@ -339,6 +344,7 @@ def search_orders_by_ids(order_ids):
         )
 
 
+@st.cache_data(ttl=120, show_spinner=False)
 def search_orders_by_status_and_date(statuses, start_date, end_date):
     """
     All product rows where order_status is in `statuses`
@@ -374,6 +380,7 @@ def search_orders_by_status_and_date(statuses, start_date, end_date):
         )
 
 
+@st.cache_data(ttl=120, show_spinner=False)
 def search_orders_by_zop_and_channel(pairs):
     """
     pairs = list of (zop_id, sr_channel_id).
@@ -411,6 +418,7 @@ def search_orders_by_zop_and_channel(pairs):
         return pd.read_sql_query(query, conn, params=[zop_ids, channel_ids])
 
 
+@st.cache_data(ttl=300, show_spinner=False)
 def get_distinct_order_statuses():
     """Distinct statuses currently in orders table."""
     query = """
