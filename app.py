@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
+import extra_streamlit_components as stx
 
 from database import (
     initialize_database,
@@ -238,6 +239,23 @@ if "show_coupon_form" not in st.session_state:
 # below updates this as the agent searches, opens refund/coupon, etc.
 if "mascot_state" not in st.session_state:
     st.session_state.mascot_state = None
+
+
+# =========================================================
+# PERSISTENT AGENT LOGIN (cookie – survives idle / tab sleep)
+# =========================================================
+
+@st.cache_resource(show_spinner=False)
+def _get_cookie_manager():
+    return stx.CookieManager(key="oos_cookie_manager")
+
+cookie_manager = _get_cookie_manager()
+
+# Restore agent email from cookie if session was cleared by idle timeout
+if st.session_state.agent_email is None:
+    saved = cookie_manager.get("oos_agent_email")
+    if saved and isinstance(saved, str) and "@" in saved:
+        st.session_state.agent_email = saved.strip()
 
 
 # =========================================================
@@ -3465,6 +3483,13 @@ def render_agent_login():
             else:
 
                 st.session_state.agent_email = cleaned_email
+                # Persist for 30 days so idle / tab sleep does not force re-login
+                cookie_manager.set(
+                    "oos_agent_email",
+                    cleaned_email,
+                    max_age=60 * 60 * 24 * 30,  # 30 days
+                    same_site="lax",
+                )
                 st.rerun()
 
 
@@ -3509,7 +3534,11 @@ with st.sidebar:
             st.session_state.last_search_results = None
             st.session_state.show_refund_confirm = False
             st.session_state.mascot_state = None
-
+            # Clear persistent cookie
+            try:
+                cookie_manager.delete("oos_agent_email")
+            except Exception:
+                pass
             st.rerun()
 
 
@@ -3634,12 +3663,16 @@ if mode == "Agent":
                     st.error(f"❌ Classification failed: {e}")
 
         # -----------------------------------------------------
-        # RESULTS DISPLAY
+        # RESULTS DISPLAY  (fragment = only this block re-runs
+        # when checkboxes / qty / reason change → huge speed win)
         # -----------------------------------------------------
 
-        results = st.session_state.last_search_results
+        @st.fragment
+        def _render_order_results_and_actions():
+            results = st.session_state.last_search_results
 
-        if results is not None and not results.empty:
+            if results is None or results.empty:
+                return
 
             order_id = str(results.iloc[0].get("zop_order_id") or "")
 
@@ -4240,6 +4273,13 @@ if mode == "Agent":
                                     )
                         except Exception as e:
                             st.error(f"❌ Something went wrong: {str(e)}")
+
+
+
+            # end of original results block
+
+        _render_order_results_and_actions()
+
 
 
 # =========================================================
