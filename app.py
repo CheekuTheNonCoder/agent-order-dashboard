@@ -245,15 +245,15 @@ if "mascot_state" not in st.session_state:
 # PERSISTENT AGENT LOGIN (cookie – survives idle / tab sleep)
 # =========================================================
 
-@st.cache_resource(show_spinner=False)
-def _get_cookie_manager():
-    return stx.CookieManager(key="oos_cookie_manager")
+# CookieManager uses a Streamlit widget internally — do NOT put it under
+# @st.cache_resource / @st.cache_data (that causes CachedWidgetWarning).
+cookie_manager = stx.CookieManager(key="oos_cookie_manager")
 
-cookie_manager = _get_cookie_manager()
-
-# Restore agent email from cookie if session was cleared by idle timeout
-if st.session_state.agent_email is None:
+# Restore agent email from cookie if session was cleared by idle timeout.
+# Only attempt restore once per session to avoid flicker.
+if st.session_state.agent_email is None and not st.session_state.get("_cookie_restore_done"):
     saved = cookie_manager.get("oos_agent_email")
+    st.session_state._cookie_restore_done = True
     if saved and isinstance(saved, str) and "@" in saved:
         st.session_state.agent_email = saved.strip()
 
