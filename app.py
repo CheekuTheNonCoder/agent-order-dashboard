@@ -352,10 +352,11 @@ st.markdown(
     .block-container {
         position: relative;
         z-index: 1;
-        padding-top: 1.4rem !important;
+        padding-top: 1.25rem !important;
         padding-bottom: 3.5rem !important;
-        max-width: 920px !important; /* Focus Deck: narrower, centered stage */
+        max-width: 1280px !important; /* Command Center: wider ops console */
     }
+
 
 
     #MainMenu, footer, header[data-testid="stHeader"] { background: transparent !important; }
@@ -812,7 +813,73 @@ st.markdown(
     }
 
     /* =========================================================
-       FOCUS DECK — mockup-close chrome
+       COMMAND CENTER chrome
+       ========================================================= */
+    .cc-top {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 1rem; flex-wrap: wrap; margin-bottom: 1.15rem;
+        animation: fadeUp 0.4s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    .cc-brand { display: flex; align-items: center; gap: 0.75rem; }
+    .cc-logo-mark {
+        width: 40px; height: 40px; border-radius: 12px;
+        background: linear-gradient(135deg, #22D3EE, #A855F7);
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 800; color: #000; font-size: 1.1rem;
+        box-shadow: 0 8px 28px rgba(34,211,238,0.35);
+    }
+    .cc-title {
+        font-family: 'Sora', sans-serif;
+        font-size: 1.35rem; font-weight: 800; letter-spacing: -0.03em; color: #fff;
+    }
+    .cc-sub {
+        font-size: 0.78rem; color: var(--text-3);
+        display: flex; align-items: center; gap: 0.4rem; margin-top: 0.1rem;
+    }
+    .cc-live {
+        width: 7px; height: 7px; border-radius: 50%; background: #22D3EE;
+        box-shadow: 0 0 0 0 rgba(34,211,238,0.5); animation: pulseDot 2s infinite;
+    }
+    .cc-agent-chip {
+        font-size: 0.75rem; font-weight: 600; color: var(--text-1);
+        padding: 0.4rem 0.85rem; border-radius: 999px;
+        background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+        max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .cc-order-header {
+        margin: 1.1rem 0 1rem 0; padding: 1.15rem 1.3rem; border-radius: 20px;
+        background: linear-gradient(155deg, rgba(255,255,255,0.1) 0%, transparent 50%), rgba(255,255,255,0.035);
+        border: 1px solid rgba(255,255,255,0.12); backdrop-filter: blur(24px);
+        box-shadow: 0 20px 50px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+        animation: fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    .cc-order-top {
+        display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+        gap: 0.75rem; margin-bottom: 0.65rem;
+    }
+    .cc-order-id { font-family: 'Sora', sans-serif; font-size: 1.35rem; font-weight: 700; color: var(--text-2); }
+    .cc-order-id span { color: #fff; font-weight: 800; letter-spacing: -0.03em; }
+    .cc-order-badges { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .cc-badge {
+        font-size: 0.7rem; font-weight: 600; padding: 0.28rem 0.65rem; border-radius: 999px;
+        background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: var(--text-2);
+    }
+    .cc-badge.ok { color: #4ADE80; border-color: rgba(74,222,128,0.25); background: rgba(74,222,128,0.1); }
+    .cc-badge.bad { color: #FB7185; border-color: rgba(251,113,133,0.25); background: rgba(251,113,133,0.1); }
+    .cc-badge.info { color: #22D3EE; border-color: rgba(34,211,238,0.25); background: rgba(34,211,238,0.1); }
+    .cc-badge.warn { color: #FBBF24; border-color: rgba(251,191,36,0.25); background: rgba(251,191,36,0.1); }
+    .cc-order-meta { display: flex; flex-wrap: wrap; gap: 0.85rem; font-size: 0.8rem; color: var(--text-3); font-weight: 500; }
+    .cc-panel-title {
+        font-family: 'Sora', sans-serif; font-size: 0.95rem; font-weight: 700; color: var(--text-1);
+        margin: 0 0 0.65rem 0; letter-spacing: -0.02em;
+    }
+    .cc-panel-title span {
+        font-size: 0.75rem; font-weight: 600; color: var(--accent-2); margin-left: 0.35rem;
+        padding: 0.15rem 0.45rem; border-radius: 999px; background: rgba(34,211,238,0.12);
+    }
+
+    /* =========================================================
+       FOCUS DECK — leftover chrome (unused, safe)
        ========================================================= */
 
     .fd-nav {
@@ -825,6 +892,7 @@ st.markdown(
         padding: 0.35rem 0.1rem;
         animation: fadeUp 0.4s cubic-bezier(0.16,1,0.3,1) both;
     }
+
     .fd-nav-brand {
         display: flex;
         align-items: center;
@@ -3976,27 +4044,23 @@ if mode == "Agent":
         current_hour = get_ist_hour()
         greeting_headline, greeting_sub = get_greeting(current_hour)
 
-        # -------- FOCUS DECK: mockup-style top nav --------
+        # -------- COMMAND CENTER top identity --------
         st.markdown(
             f'''
-            <div class="fd-nav">
-                <div class="fd-nav-brand">
-                    <span class="fd-nav-logo">OrderOS</span>
-                    <span class="fd-nav-agent-tag">AGENT</span>
+            <div class="cc-top">
+                <div class="cc-brand">
+                    <div class="cc-logo-mark">◆</div>
+                    <div>
+                        <div class="cc-title">Command Center</div>
+                        <div class="cc-sub"><span class="cc-live"></span>Real-time agent operations · {esc(greeting_headline)}</div>
+                    </div>
                 </div>
-                <div class="fd-nav-pills">
-                    <span class="fd-pill fd-pill-active"><span class="fd-pill-dot"></span>Focus Deck</span>
-                    <span class="fd-pill">List View</span>
-                    <span class="fd-pill">Watchlist</span>
-                </div>
-                <div class="fd-nav-right">
-                    <span class="fd-nav-greet">{esc(greeting_headline)}</span>
-                    <span class="fd-nav-email">{esc(st.session_state.agent_email)}</span>
-                </div>
+                <div class="cc-agent-chip">{esc(st.session_state.agent_email)}</div>
             </div>
             ''',
             unsafe_allow_html=True,
         )
+
 
 
         # The cat companion is a floating, draggable desktop-pet style
@@ -4006,44 +4070,24 @@ if mode == "Agent":
         # Streamlit reruns without any Python-side tracking.
         render_cat_companion_widget(get_mascot_state(current_hour))
 
-        # -------- FOCUS DECK: centered search orb / command sheet --------
-        has_results = (
-            st.session_state.last_search_results is not None
-            and not st.session_state.last_search_results.empty
-        )
-
-        if not has_results:
-            st.markdown(
-                '''
-                <div class="fd-search-hero">
-                    <div class="oos-eyebrow" style="margin:0 auto 0.75rem auto;">
-                        <span class="pulse-dot"></span>Search workspace
-                    </div>
-                    <div class="fd-search-title">Find any order</div>
-                    <div class="fd-search-sub">ZOP Order ID · ZOP ID · Seller Order ID · AWB</div>
-                </div>
-                ''',
-                unsafe_allow_html=True,
+        # -------- COMMAND CENTER search strip --------
+        cc_s1, cc_s2 = st.columns([5, 1], gap="small")
+        with cc_s1:
+            search_value = st.text_input(
+                "Universal Search",
+                placeholder="Search orders · ZOP · Seller ID · AWB…",
+                label_visibility="collapsed",
+                key="agent_universal_search",
+            )
+        with cc_s2:
+            st.markdown('<div style="height:0.15rem"></div>', unsafe_allow_html=True)
+            search_button = st.button(
+                "Search",
+                type="primary",
+                use_container_width=True,
+                key="agent_search_btn",
             )
 
-
-        with st.container(border=True):
-            cmd_left, cmd_right = st.columns([5, 1], gap="small")
-            with cmd_left:
-                search_value = st.text_input(
-                    "Universal Search",
-                    placeholder="Paste order id / zop id / awb…",
-                    label_visibility="collapsed",
-                    key="agent_universal_search",
-                )
-            with cmd_right:
-                st.markdown('<div style="height:0.15rem"></div>', unsafe_allow_html=True)
-                search_button = st.button(
-                    "Search",
-                    type="primary",
-                    use_container_width=True,
-                    key="agent_search_btn",
-                )
 
         if search_button:
 
@@ -4125,295 +4169,219 @@ if mode == "Agent":
                 ~status_series.isin(["delivered", "cancelled", "in transit"])
             ).sum()
 
-            # FOCUS DECK hero — gradient-border Match card (mockup style)
+            # COMMAND CENTER order header
             st.markdown(
                 f"""
-                <div class="fd-match-wrap">
-                  <div class="fd-match-card">
-                    <div class="fd-match-badge">♥ Match</div>
-                    <div class="fd-match-label">ORDER ID</div>
-                    <div class="fd-match-id">#{esc(order_id)}</div>
-                    <div class="fd-match-meta">
-                      <span class="fd-meta-chip">ZOP · {esc(zop_id)}</span>
-                      <span class="fd-meta-chip">Seller · {esc(seller_order_id)}</span>
+                <div class="cc-order-header">
+                  <div class="cc-order-top">
+                    <div class="cc-order-id">Order <span>#{esc(order_id)}</span></div>
+                    <div class="cc-order-badges">
+                      <span class="cc-badge">{total_products} items</span>
+                      <span class="cc-badge ok">{delivered} delivered</span>
+                      <span class="cc-badge bad">{cancelled} cancelled</span>
+                      <span class="cc-badge info">{in_transit} transit</span>
+                      <span class="cc-badge warn">{pending} pending</span>
                     </div>
-                    <div class="fd-match-stats">
-                      <div class="fd-mstat"><span>Total</span><b>{total_products}</b></div>
-                      <div class="fd-mstat ok"><span>Delivered</span><b>{delivered}</b></div>
-                      <div class="fd-mstat bad"><span>Cancelled</span><b>{cancelled}</b></div>
-                      <div class="fd-mstat info"><span>Transit</span><b>{in_transit}</b></div>
-                      <div class="fd-mstat warn"><span>Pending</span><b>{pending}</b></div>
-                    </div>
+                  </div>
+                  <div class="cc-order-meta">
+                    <span>ZOP · {esc(zop_id)}</span>
+                    <span>Seller · {esc(seller_order_id)}</span>
+                    <span>Agent · {esc(st.session_state.agent_email)}</span>
                   </div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
 
-            # =================================================
-            # PRODUCT LEVEL DETAILS — stacked sheet
-            # =================================================
+            # Split pane: left = products, right = Refund / Classify / Coupon
+            cc_left, cc_right = st.columns([1.45, 1], gap="medium")
 
-            st.markdown(
-                '<div class="fd-stack-label"><span>▣</span> Products</div>',
-                unsafe_allow_html=True,
-            )
-            st.markdown('<div class="fd-stack-sheet">', unsafe_allow_html=True)
-            render_product_table(results)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-            # =================================================
-            # V2 — CS CLASSIFICATION WORKFLOW — stacked sheet
-            # =================================================
-
-            st.markdown(
-                '<div class="fd-stack-label"><span>✎</span> Classify ticket</div>',
-                unsafe_allow_html=True,
-            )
-
-
-
-
-            cs_rows = []
-            for row_position, row in results.reset_index(drop=True).iterrows():
-                cs_rows.append(
-                    {
-                        "row_key": f"{order_id}_{row_position}_{row.get('product_id')}_{row.get('variant_id')}",
-                        "product_id": row.get("product_id"),
-                        "title": row.get("title"),
-                        "brand": row.get("company_name"),
-                        "status": row.get("order_status"),
-                    }
+            with cc_left:
+                st.markdown(
+                    f'<div class="cc-panel-title">Products <span>{total_products}</span></div>',
+                    unsafe_allow_html=True,
                 )
+                render_product_table(results)
 
-            with st.container(border=True):
-                st.caption(f"Agent: {st.session_state.agent_email}")
-
-                selected_cs_products = []
-                for product in cs_rows:
-                    label = str(product["title"] or "Unnamed Product")
-                    if product["brand"] not in (None, ""):
-                        label = f"{label} · {product['brand']}"
-
-                    checked = st.checkbox(
-                        label,
-                        key=f"cs_chk_{product['row_key']}",
+                with st.expander("View all order identifiers"):
+                    identifiers = results[
+                        [
+                            "zop_order_id",
+                            "zop_id",
+                            "seller_order_id",
+                            "awb",
+                        ]
+                    ].drop_duplicates()
+                    st.dataframe(
+                        identifiers,
+                        use_container_width=True,
+                        hide_index=True,
                     )
-                    if checked:
-                        selected_cs_products.append(product)
 
-                cs_delivery_type = st.radio(
-                    "Delivery Type",
-                    CS_DELIVERY_TYPES,
-                    horizontal=True,
-                    key=f"cs_delivery_type_{order_id}",
+            selected_products = []  # filled in Refund tab; used by confirm panel
+
+            with cc_right:
+                st.markdown(
+                    '<div class="cc-panel-title">Refund / Classify / Coupon</div>',
+                    unsafe_allow_html=True,
+                )
+                tab_refund, tab_classify, tab_coupon = st.tabs(
+                    ["Refund", "Classify", "Coupon"]
                 )
 
-                subcategory_options = (
-                    CS_POST_SUBCATEGORIES
-                    if cs_delivery_type == "Post Delivery"
-                    else CS_PRE_SUBCATEGORIES
-                )
 
-                cs_subcategory = st.selectbox(
-                    "Subcategory",
-                    ["— Select Subcategory —"] + subcategory_options,
-                    key=f"cs_subcategory_{order_id}",
-                )
-
-                cs_submit = st.button(
-                    "Submit Classification",
-                    type="primary",
-                    use_container_width=True,
-                    disabled=(
-                        len(selected_cs_products) == 0
-                        or cs_subcategory == "— Select Subcategory —"
-                    ),
-                    key=f"cs_submit_{order_id}",
-                )
-
-                if cs_submit:
-                    if not st.session_state.agent_email:
-                        st.error(
-                            "You must be logged in as an agent to classify a ticket."
+                # ---------- CLASSIFY TAB ----------
+                with tab_classify:
+                    cs_rows = []
+                    for row_position, row in results.reset_index(drop=True).iterrows():
+                        cs_rows.append(
+                            {
+                                "row_key": f"{order_id}_{row_position}_{row.get('product_id')}_{row.get('variant_id')}",
+                                "product_id": row.get("product_id"),
+                                "title": row.get("title"),
+                                "brand": row.get("company_name"),
+                                "status": row.get("order_status"),
+                            }
                         )
-                    else:
-                        submitted = 0
-                        duplicates = 0
-                        failed = None
-                        report_events = []
 
-                        with st.spinner("Saving CS classification..."):
-                            for product in selected_cs_products:
-                                try:
-                                    result = submit_cs_classification(
-                                        order_id=order_id,
-                                        product_id=product["product_id"],
-                                        delivery_type=cs_delivery_type,
-                                        subcategory=cs_subcategory,
-                                        agent_email=st.session_state.agent_email,
-                                    )
-                                    if result.get("unique_issue") is False:
-                                        duplicates += 1
-                                    else:
-                                        submitted += 1
-                                        report_events.append(result)
-                                except Exception as e:
-                                    failed = str(e)
-                                    break
+                    st.caption(f"Agent: {st.session_state.agent_email}")
+                    selected_cs_products = []
+                    for product in cs_rows:
+                        label = str(product["title"] or "Unnamed Product")
+                        if product["brand"] not in (None, ""):
+                            label = f"{label} · {product['brand']}"
+                        checked = st.checkbox(
+                            label,
+                            key=f"cs_chk_{product['row_key']}",
+                        )
+                        if checked:
+                            selected_cs_products.append(product)
 
-                        if failed:
-                            st.error(f"❌ Classification failed: {failed}")
+                    cs_delivery_type = st.radio(
+                        "Delivery Type",
+                        CS_DELIVERY_TYPES,
+                        horizontal=True,
+                        key=f"cs_delivery_type_{order_id}",
+                    )
+                    subcategory_options = (
+                        CS_POST_SUBCATEGORIES
+                        if cs_delivery_type == "Post Delivery"
+                        else CS_PRE_SUBCATEGORIES
+                    )
+                    cs_subcategory = st.selectbox(
+                        "Subcategory",
+                        ["— Select Subcategory —"] + subcategory_options,
+                        key=f"cs_subcategory_{order_id}",
+                    )
+                    cs_submit = st.button(
+                        "Submit Classification",
+                        type="primary",
+                        use_container_width=True,
+                        disabled=(
+                            len(selected_cs_products) == 0
+                            or cs_subcategory == "— Select Subcategory —"
+                        ),
+                        key=f"cs_submit_{order_id}",
+                    )
+                    if cs_submit:
+                        if not st.session_state.agent_email:
+                            st.error(
+                                "You must be logged in as an agent to classify a ticket."
+                            )
                         else:
-                            if submitted:
-                                st.success(
-                                    f"✅ {submitted} classification(s) saved successfully."
-                                )
-                            if duplicates:
-                                st.info(
-                                    f"ℹ️ {duplicates} duplicate issue(s) were recorded but excluded from unique reporting."
-                                )
-                            st.session_state.mascot_state = "found"
-                            if submitted:
-                                trigger_cs_report_delta(report_events)
+                            submitted = 0
+                            duplicates = 0
+                            failed = None
+                            report_events = []
+                            with st.spinner("Saving CS classification..."):
+                                for product in selected_cs_products:
+                                    try:
+                                        result = submit_cs_classification(
+                                            order_id=order_id,
+                                            product_id=product["product_id"],
+                                            delivery_type=cs_delivery_type,
+                                            subcategory=cs_subcategory,
+                                            agent_email=st.session_state.agent_email,
+                                        )
+                                        if result.get("unique_issue") is False:
+                                            duplicates += 1
+                                        else:
+                                            submitted += 1
+                                            report_events.append(result)
+                                    except Exception as e:
+                                        failed = str(e)
+                                        break
+                            if failed:
+                                st.error(f"❌ Classification failed: {failed}")
+                            else:
+                                if submitted:
+                                    st.success(
+                                        f"✅ {submitted} classification(s) saved successfully."
+                                    )
+                                if duplicates:
+                                    st.info(
+                                        f"ℹ️ {duplicates} duplicate issue(s) were recorded but excluded from unique reporting."
+                                    )
+                                st.session_state.mascot_state = "found"
+                                if submitted:
+                                    trigger_cs_report_delta(report_events)
 
-            # =================================================
-            # RAW IDENTIFIERS
-            # =================================================
+                # ---------- REFUND TAB ----------
+                with tab_refund:
+                    st.caption("Select products to refund")
 
-            with st.expander("🔍 View all order identifiers"):
+                    refund_products = []
+                    for row_position, row in results.reset_index(drop=True).iterrows():
+                        refund_products.append(
+                            {
+                                "row_key": f"{order_id}_{row_position}_{row.get('variant_id')}",
+                                "title": row.get("title"),
+                                "product_id": row.get("product_id"),
+                                "variant_id": row.get("variant_id"),
+                                "quantity": row.get("quantity"),
+                                "final_price": row.get("final_price"),
+                                "sr_channel_id": row.get("sr_channel_id"),
+                                "zop_order_id": row.get("zop_order_id"),
+                            }
+                        )
 
-                identifiers = results[
-                    [
-                        "zop_order_id",
-                        "zop_id",
-                        "seller_order_id",
-                        "awb",
-                    ]
-                ].drop_duplicates()
+                    selected_products = []
+                    for product in refund_products:
+                        checkbox_key = f"refund_chk_{product['row_key']}"
+                        product_label = (
+                            str(product["title"])
+                            if product["title"] not in (None, "")
+                            else "Unnamed Product"
+                        )
+                        is_checked = st.checkbox(product_label, key=checkbox_key)
+                        if is_checked:
+                            selected_products.append(product)
 
-                st.dataframe(
-                    identifiers,
-                    use_container_width=True,
-                    hide_index=True,
-                )
-
-            # =================================================
-            # V2 — REFUND WORKFLOW
-            # =================================================
-
-            st.markdown(
-                '<div class="fd-stack-label"><span>↺</span> Refund actions</div>',
-                unsafe_allow_html=True,
-            )
-
-
-            refund_products = []
-
-            for row_position, row in results.reset_index(drop=True).iterrows():
-
-                refund_products.append(
-                    {
-                        "row_key": f"{order_id}_{row_position}_{row.get('variant_id')}",
-                        "title": row.get("title"),
-                        "product_id": row.get("product_id"),
-                        "variant_id": row.get("variant_id"),
-                        "quantity": row.get("quantity"),
-                        "final_price": row.get("final_price"),
-                        "sr_channel_id": row.get("sr_channel_id"),
-                        "zop_order_id": row.get("zop_order_id"),
-                    }
-                )
-
-            # FIX: use a real Streamlit bordered container instead of a raw
-            # HTML div — the previous open/close-div pattern doesn't actually
-            # wrap the checkboxes in Streamlit, so it rendered as an empty
-            # floating box above the (visually tiny) checkbox list.
-            with st.container(border=True):
-
-                selected_products = []
-
-                for product in refund_products:
-
-                    checkbox_key = f"refund_chk_{product['row_key']}"
-
-                    product_label = (
-                        str(product["title"])
-                        if product["title"] not in (None, "")
-                        else "Unnamed Product"
+                    refund_clicked = st.button(
+                        "💸 Refund",
+                        type="primary",
+                        use_container_width=True,
+                        disabled=len(selected_products) == 0,
+                        key=f"refund_btn_{order_id}",
                     )
+                    if refund_clicked:
+                        st.session_state.show_refund_confirm = True
+                        st.session_state.mascot_state = "refund"
+                        st.rerun()
 
-                    is_checked = st.checkbox(product_label, key=checkbox_key)
-
-                    if is_checked:
-
-                        selected_products.append(product)
-
-            refund_clicked = st.button(
-                "💸 Refund",
-                type="primary",
-                use_container_width=True,
-                disabled=len(selected_products) == 0,
-            )
-
-            if refund_clicked:
-
-                st.session_state.show_refund_confirm = True
-                st.session_state.mascot_state = "refund"
-                st.rerun()
-
-            # -------------------------------------------------
-            # SPECIAL COUPON
-            # Placed directly below the Refund button, as a separate
-            # action. Uses a real Streamlit bordered container.
-            # -------------------------------------------------
-
-            st.markdown(
-                '<div class="fd-stack-label"><span>✦</span> Special coupon</div>',
-                unsafe_allow_html=True,
-            )
-
-
-            coupon_toggle_clicked = st.button(
-                "🎟️ Special Coupon",
-                use_container_width=True,
-                key="open_special_coupon_btn",
-            )
-
-            if coupon_toggle_clicked:
-                st.session_state.show_coupon_form = (
-                    not st.session_state.show_coupon_form
-                )
-                st.session_state.mascot_state = (
-                    "coupon" if st.session_state.show_coupon_form else None
-                )
-                st.rerun()
-
-            if st.session_state.show_coupon_form:
-
-                with st.container(border=True):
-
-                    st.markdown(
-                        '<div style="font-weight:700; font-size:1.05rem; margin-bottom:0.7rem;">Special Coupon</div>',
-                        unsafe_allow_html=True,
-                    )
-
-                    # Order context comes from the order already open on this
-                    # page — never required, never blocks submission if absent.
+                # ---------- COUPON TAB ----------
+                with tab_coupon:
                     st.caption(f"Linked to order: {order_id}")
-
                     customer_contact_value = st.text_input(
                         "Customer Contact",
                         placeholder="Phone number or email",
                         key="coupon_customer_contact",
                     )
-
                     coupon_type_value = st.selectbox(
                         "Coupon Type",
                         COUPON_TYPE_OPTIONS,
                         key="coupon_type_select",
                     )
-
                     coupon_submit_clicked = st.button(
                         "Submit Special Coupon",
                         type="primary",
@@ -4422,6 +4390,7 @@ if mode == "Agent":
                     )
 
                     if coupon_submit_clicked:
+
 
                         # Validation — mirrors the same guard used for refunds.
                         if not st.session_state.agent_email:
