@@ -76,7 +76,9 @@ st.set_page_config(
     page_title="OrderOS • Dekho Woh Aa Gaya",
     page_icon="◆",
     layout="wide",
+    initial_sidebar_state="collapsed",  # burger menu — full main screen by default
 )
+
 
 
 # =========================================================
@@ -362,21 +364,50 @@ st.markdown(
     #MainMenu, footer, header[data-testid="stHeader"] { background: transparent !important; }
     header[data-testid="stHeader"] { box-shadow: none !important; }
 
-    /* ---- sidebar: dark frosted rail ---- */
+    /* ---- sidebar: collapsed by default (burger); narrower when open ---- */
     section[data-testid="stSidebar"] {
         z-index: 2;
-        background: rgba(0, 0, 0, 0.72) !important;
+        background: rgba(0, 0, 0, 0.78) !important;
         backdrop-filter: blur(40px) saturate(180%) !important;
         -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
         border-right: 1px solid rgba(255,255,255,0.08) !important;
         box-shadow: inset -1px 0 0 rgba(34,211,238,0.08);
+        min-width: 200px !important;
+        width: 220px !important;
     }
     section[data-testid="stSidebar"] > div {
         background: transparent !important;
     }
     section[data-testid="stSidebar"] .block-container {
-        padding-top: 1.8rem !important;
+        padding-top: 1.2rem !important;
+        padding-left: 0.85rem !important;
+        padding-right: 0.85rem !important;
     }
+    /* keep main content wide when sidebar collapsed */
+    section[data-testid="stSidebar"][aria-expanded="false"] {
+        width: 0 !important;
+        min-width: 0 !important;
+    }
+
+    /* search row: align input + button on one baseline */
+    div[data-testid="stHorizontalBlock"] {
+        align-items: center !important;
+    }
+    div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    /* kill extra top gap above search button */
+    div[data-testid="stHorizontalBlock"] .stButton {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+    div[data-testid="stHorizontalBlock"] .stButton > button {
+        height: 3rem !important;
+        margin-top: 0 !important;
+    }
+
 
     h1, h2, h3 { color: var(--text-1); letter-spacing: -0.04em; }
 
@@ -4080,13 +4111,13 @@ if mode == "Agent":
                 key="agent_universal_search",
             )
         with cc_s2:
-            st.markdown('<div style="height:0.15rem"></div>', unsafe_allow_html=True)
             search_button = st.button(
                 "Search",
                 type="primary",
                 use_container_width=True,
                 key="agent_search_btn",
             )
+
 
 
         if search_button:
@@ -4194,7 +4225,8 @@ if mode == "Agent":
             )
 
             # Split pane: left = products, right = Refund / Classify / Coupon
-            cc_left, cc_right = st.columns([1.45, 1], gap="medium")
+            cc_left, cc_right = st.columns([1.7, 1], gap="medium")
+
 
             with cc_left:
                 st.markdown(
@@ -4357,19 +4389,17 @@ if mode == "Agent":
                         if is_checked:
                             selected_products.append(product)
 
-                    refund_clicked = st.button(
-                        "💸 Refund",
-                        type="primary",
-                        use_container_width=True,
-                        disabled=len(selected_products) == 0,
-                        key=f"refund_btn_{order_id}",
-                    )
-                    if refund_clicked:
+                    # No separate Refund button — selecting products opens
+                    # the confirmation panel below automatically.
+                    if selected_products:
                         st.session_state.show_refund_confirm = True
                         st.session_state.mascot_state = "refund"
-                        st.rerun()
+                        st.caption(f"{len(selected_products)} product(s) selected · confirm below")
+                    else:
+                        st.session_state.show_refund_confirm = False
 
                 # ---------- COUPON TAB ----------
+
                 with tab_coupon:
                     st.caption(f"Linked to order: {order_id}")
                     customer_contact_value = st.text_input(
@@ -4441,10 +4471,10 @@ if mode == "Agent":
             # REFUND CONFIRMATION
             # -------------------------------------------------
 
-            if st.session_state.show_refund_confirm and selected_products:
+            if selected_products:
 
                 st.markdown(
-                    '<div class="oos-section-title">🎯 Refund Confirmation</div>',
+                    '<div class="oos-section-title">Refund Confirmation</div>',
                     unsafe_allow_html=True,
                 )
 
@@ -4471,40 +4501,37 @@ if mode == "Agent":
                     except (TypeError, ValueError):
                         default_amt = 0.0
 
-                    st.markdown(
-                        '<div class="glass-card" style="margin-top:1rem;">',
-                        unsafe_allow_html=True,
-                    )
+                    # Real Streamlit container — no empty HTML glass shell
+                    with st.container(border=True):
+                        st.markdown(
+                            f'<div style="font-weight:700; font-size:1.05rem; margin-bottom:0.55rem;">{esc(product["title"])}</div>',
+                            unsafe_allow_html=True,
+                        )
 
-                    st.markdown(
-                        f'<div style="font-weight:700; font-size:1.05rem; margin-bottom:0.7rem;">{esc(product["title"])}</div>',
-                        unsafe_allow_html=True,
-                    )
+                        rc1, rc2, rc3 = st.columns(3)
 
-                    rc1, rc2, rc3 = st.columns(3)
+                        qty_value = rc1.number_input(
+                            "Quantity",
+                            min_value=1,
+                            value=max(default_qty, 1),
+                            step=1,
+                            key=qty_key,
+                        )
 
-                    qty_value = rc1.number_input(
-                        "Quantity",
-                        min_value=1,
-                        value=max(default_qty, 1),
-                        step=1,
-                        key=qty_key,
-                    )
+                        amount_value = rc2.number_input(
+                            "Refund Amount (₹)",
+                            min_value=0.0,
+                            value=default_amt,
+                            step=1.0,
+                            format="%.2f",
+                            key=amt_key,
+                        )
 
-                    amount_value = rc2.number_input(
-                        "Refund Amount (₹)",
-                        min_value=0.0,
-                        value=default_amt,
-                        step=1.0,
-                        format="%.2f",
-                        key=amt_key,
-                    )
-
-                    reason_value = rc3.selectbox(
-                        "Reason",
-                        REFUND_REASON_OPTIONS,
-                        key=reason_key,
-                    )
+                        reason_value = rc3.selectbox(
+                            "Reason",
+                            REFUND_REASON_OPTIONS,
+                            key=reason_key,
+                        )
 
                     if reason_value == REFUND_REASON_PLACEHOLDER:
                         any_reason_missing = True
@@ -4521,7 +4548,6 @@ if mode == "Agent":
                         }
                     )
 
-                    st.markdown("</div>", unsafe_allow_html=True)
 
                 if any_reason_missing:
 
