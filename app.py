@@ -352,10 +352,11 @@ st.markdown(
     .block-container {
         position: relative;
         z-index: 1;
-        padding-top: 2rem !important;
+        padding-top: 1.4rem !important;
         padding-bottom: 3.5rem !important;
-        max-width: 1080px !important;
+        max-width: 920px !important; /* Focus Deck: narrower, centered stage */
     }
+
 
     #MainMenu, footer, header[data-testid="stHeader"] { background: transparent !important; }
     header[data-testid="stHeader"] { box-shadow: none !important; }
@@ -810,64 +811,278 @@ st.markdown(
         animation: fadeUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
 
-    /* ---- NEW LAYOUT: topbar + command bar + fused result ---- */
-    .oos-topbar {
+    /* =========================================================
+       FOCUS DECK — mockup-close chrome
+       ========================================================= */
+
+    .fd-nav {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         justify-content: space-between;
-        gap: 1rem;
-        margin-bottom: 1.4rem;
-        padding: 1.15rem 1.35rem;
-        border-radius: 24px;
-        background:
-            linear-gradient(145deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.02) 50%, transparent 80%),
-            rgba(255,255,255,0.03);
-        border: 1px solid rgba(255,255,255,0.12);
-        backdrop-filter: blur(28px) saturate(170%);
-        -webkit-backdrop-filter: blur(28px) saturate(170%);
-        box-shadow: 0 20px 50px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
-        animation: fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.6rem;
+        padding: 0.35rem 0.1rem;
+        animation: fadeUp 0.4s cubic-bezier(0.16,1,0.3,1) both;
     }
-    .oos-topbar-title {
+    .fd-nav-brand {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+    }
+    .fd-nav-logo {
         font-family: 'Sora', sans-serif;
-        font-size: 1.85rem;
         font-weight: 800;
-        letter-spacing: -0.04em;
-        line-height: 1.15;
-        background: linear-gradient(120deg, #fff 30%, #67E8F9 70%, #E879F9 100%);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
+        font-size: 1.15rem;
+        letter-spacing: -0.03em;
+        color: #fff;
     }
-    .oos-topbar-sub {
-        color: var(--text-2);
-        font-size: 0.92rem;
-        margin-top: 0.15rem;
-    }
-    .oos-topbar-chip {
-        flex-shrink: 0;
-        font-size: 0.75rem;
-        font-weight: 600;
+    .fd-nav-agent-tag {
+        font-size: 0.62rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
         color: var(--accent-2);
-        padding: 0.45rem 0.85rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 6px;
+        background: rgba(34,211,238,0.12);
+        border: 1px solid rgba(34,211,238,0.28);
+    }
+    .fd-nav-pills {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+    }
+    .fd-pill {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--text-2);
+        padding: 0.4rem 0.85rem;
         border-radius: 999px;
-        background: rgba(34,211,238,0.08);
-        border: 1px solid rgba(34,211,238,0.22);
-        max-width: 220px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.1);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .fd-pill-active {
+        color: #041018;
+        background: linear-gradient(135deg, #67E8F9, #22D3EE);
+        border-color: transparent;
+        box-shadow: 0 8px 24px rgba(34,211,238,0.35);
+        font-weight: 700;
+    }
+    .fd-pill-dot {
+        width: 6px; height: 6px; border-radius: 50%;
+        background: #041018;
+    }
+    .fd-nav-right {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+    }
+    .fd-nav-greet {
+        font-size: 0.82rem;
+        color: var(--text-2);
+    }
+    .fd-nav-email {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--text-1);
+        padding: 0.35rem 0.75rem;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.12);
+        max-width: 190px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        align-self: center;
     }
 
-    .oos-cmd-label {
-        font-size: 0.68rem;
+    .fd-search-hero {
+        text-align: center;
+        margin: 1.8rem auto 1.15rem auto;
+        max-width: 520px;
+        animation: fadeUp 0.55s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    .fd-search-title {
+        font-family: 'Sora', sans-serif;
+        font-size: 2.15rem;
+        font-weight: 800;
+        letter-spacing: -0.045em;
+        background: linear-gradient(120deg, #fff 20%, #67E8F9 65%, #E879F9 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.35rem;
+    }
+    .fd-search-sub {
+        color: var(--text-3);
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    /* Match card — gradient border glow like mockup */
+    .fd-match-wrap {
+        margin: 1.5rem 0 1.1rem 0;
+        padding: 1.5px;
+        border-radius: 28px;
+        background: linear-gradient(135deg, #67E8F9 0%, #A78BFA 45%, #E879F9 100%);
+        box-shadow: 0 0 60px rgba(34,211,238,0.18), 0 30px 70px rgba(0,0,0,0.5);
+        animation: fadeUp 0.55s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    .fd-match-card {
+        border-radius: 26.5px;
+        padding: 1.45rem 1.55rem 1.25rem;
+        background:
+            linear-gradient(160deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.02) 40%, transparent 70%),
+            rgba(6, 8, 14, 0.92);
+        backdrop-filter: blur(28px) saturate(180%);
+        -webkit-backdrop-filter: blur(28px) saturate(180%);
+    }
+    .fd-match-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.7rem;
         font-weight: 700;
-        letter-spacing: 0.14em;
+        color: #F9A8D4;
+        background: rgba(244, 114, 182, 0.12);
+        border: 1px solid rgba(244, 114, 182, 0.3);
+        padding: 0.28rem 0.7rem;
+        border-radius: 999px;
+        margin-bottom: 0.7rem;
+    }
+    .fd-match-label {
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
         color: var(--text-3);
-        margin: 0.2rem 0 0.55rem 0.15rem;
+        margin-bottom: 0.2rem;
     }
+    .fd-match-id {
+        font-family: 'Sora', sans-serif;
+        font-size: 2.15rem;
+        font-weight: 800;
+        letter-spacing: -0.045em;
+        color: #fff;
+        line-height: 1.1;
+        margin-bottom: 0.85rem;
+    }
+    .fd-match-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-bottom: 1.1rem;
+    }
+    .fd-meta-chip {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-2);
+        padding: 0.35rem 0.75rem;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    .fd-match-stats {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 0.5rem;
+    }
+    .fd-mstat {
+        text-align: center;
+        padding: 0.65rem 0.35rem;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.08);
+    }
+    .fd-mstat span {
+        display: block;
+        font-size: 0.58rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-3);
+        margin-bottom: 0.2rem;
+    }
+    .fd-mstat b {
+        font-family: 'Sora', sans-serif;
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: var(--text-1);
+    }
+    .fd-mstat.ok b { color: #4ADE80; text-shadow: 0 0 16px rgba(74,222,128,0.35); }
+    .fd-mstat.bad b { color: #FB7185; }
+    .fd-mstat.info b { color: #22D3EE; text-shadow: 0 0 16px rgba(34,211,238,0.3); }
+    .fd-mstat.warn b { color: #FBBF24; }
+
+    .fd-stack-label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-family: 'Sora', sans-serif;
+        font-size: 0.92rem;
+        font-weight: 700;
+        color: var(--text-1);
+        margin: 1.45rem 0 0.55rem 0;
+        letter-spacing: -0.02em;
+    }
+    .fd-stack-label span {
+        display: inline-flex;
+        width: 26px; height: 26px;
+        align-items: center; justify-content: center;
+        border-radius: 8px;
+        background: rgba(34,211,238,0.1);
+        border: 1px solid rgba(34,211,238,0.22);
+        color: var(--accent-2);
+        font-size: 0.8rem;
+    }
+    .fd-stack-sheet {
+        border-radius: 20px;
+        overflow: hidden;
+    }
+
+    .fd-bottom-dock {
+        margin-top: 1.8rem;
+        margin-bottom: 0.55rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.7rem 1.1rem;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.12);
+        backdrop-filter: blur(20px);
+        box-shadow: 0 16px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.1);
+        max-width: 420px;
+    }
+    .fd-dock-item {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--text-2);
+    }
+    .fd-dock-item-active {
+        color: var(--accent-2);
+    }
+    .fd-dock-sep {
+        width: 1px;
+        height: 16px;
+        background: rgba(255,255,255,0.12);
+    }
+    .fd-dock-hint {
+        font-size: 0.72rem;
+        color: var(--text-3);
+    }
+
+    @media (max-width: 900px) {
+        .fd-match-stats { grid-template-columns: repeat(3, 1fr); }
+        .fd-nav { flex-direction: column; align-items: flex-start; }
+    }
+
+
+
 
     .oos-result-hero { padding: 1.35rem 1.5rem !important; }
     .oos-result-hero-top { margin-bottom: 1rem; }
@@ -3761,20 +3976,28 @@ if mode == "Agent":
         current_hour = get_ist_hour()
         greeting_headline, greeting_sub = get_greeting(current_hour)
 
-        # Top command header — not the old stacked title + full-width search
+        # -------- FOCUS DECK: mockup-style top nav --------
         st.markdown(
             f'''
-            <div class="oos-topbar">
-                <div class="oos-topbar-left">
-                    <div class="oos-eyebrow"><span class="pulse-dot"></span>Live workspace</div>
-                    <div class="oos-topbar-title">{esc(greeting_headline)}</div>
-                    <div class="oos-topbar-sub">{esc(greeting_sub)}</div>
+            <div class="fd-nav">
+                <div class="fd-nav-brand">
+                    <span class="fd-nav-logo">OrderOS</span>
+                    <span class="fd-nav-agent-tag">AGENT</span>
                 </div>
-                <div class="oos-topbar-chip">Agent · {esc(st.session_state.agent_email)}</div>
+                <div class="fd-nav-pills">
+                    <span class="fd-pill fd-pill-active"><span class="fd-pill-dot"></span>Focus Deck</span>
+                    <span class="fd-pill">List View</span>
+                    <span class="fd-pill">Watchlist</span>
+                </div>
+                <div class="fd-nav-right">
+                    <span class="fd-nav-greet">{esc(greeting_headline)}</span>
+                    <span class="fd-nav-email">{esc(st.session_state.agent_email)}</span>
+                </div>
             </div>
             ''',
             unsafe_allow_html=True,
         )
+
 
         # The cat companion is a floating, draggable desktop-pet style
         # component (see render_cat_companion_widget near the top of this
@@ -3783,31 +4006,44 @@ if mode == "Agent":
         # Streamlit reruns without any Python-side tracking.
         render_cat_companion_widget(get_mascot_state(current_hour))
 
-        # -----------------------------------------------------
-        # COMMAND BAR SEARCH  (inline search + action — not stacked)
-        # -----------------------------------------------------
-
-        st.markdown(
-            '<div class="oos-cmd-label">Search any order · ZOP · Seller ID · AWB</div>',
-            unsafe_allow_html=True,
+        # -------- FOCUS DECK: centered search orb / command sheet --------
+        has_results = (
+            st.session_state.last_search_results is not None
+            and not st.session_state.last_search_results.empty
         )
 
-        cmd_left, cmd_right = st.columns([5, 1], gap="small")
-        with cmd_left:
-            search_value = st.text_input(
-                "Universal Search",
-                placeholder="Paste order id / zop id / awb…",
-                label_visibility="collapsed",
-                key="agent_universal_search",
+        if not has_results:
+            st.markdown(
+                '''
+                <div class="fd-search-hero">
+                    <div class="oos-eyebrow" style="margin:0 auto 0.75rem auto;">
+                        <span class="pulse-dot"></span>Search workspace
+                    </div>
+                    <div class="fd-search-title">Find any order</div>
+                    <div class="fd-search-sub">ZOP Order ID · ZOP ID · Seller Order ID · AWB</div>
+                </div>
+                ''',
+                unsafe_allow_html=True,
             )
-        with cmd_right:
-            st.markdown('<div style="height:0.15rem"></div>', unsafe_allow_html=True)
-            search_button = st.button(
-                "Search",
-                type="primary",
-                use_container_width=True,
-                key="agent_search_btn",
-            )
+
+
+        with st.container(border=True):
+            cmd_left, cmd_right = st.columns([5, 1], gap="small")
+            with cmd_left:
+                search_value = st.text_input(
+                    "Universal Search",
+                    placeholder="Paste order id / zop id / awb…",
+                    label_visibility="collapsed",
+                    key="agent_universal_search",
+                )
+            with cmd_right:
+                st.markdown('<div style="height:0.15rem"></div>', unsafe_allow_html=True)
+                search_button = st.button(
+                    "Search",
+                    type="primary",
+                    use_container_width=True,
+                    key="agent_search_btn",
+                )
 
         if search_button:
 
@@ -3842,51 +4078,11 @@ if mode == "Agent":
                 # the agent's next click.
                 st.rerun()
 
-        # =====================================================
-        # OTHER CS WORKFLOW
-        # Compact secondary flow below the primary order search.
-        # =====================================================
-
-        with st.expander("Other ticket (no order id)", expanded=False):
-            st.caption(f"Logged as {st.session_state.agent_email}")
-
-            other_col, submit_col = st.columns([3, 1])
-
-            with other_col:
-                other_subcategory = st.selectbox(
-                    "Other Category",
-                    ["— Select Category —"] + CS_OTHER_SUBCATEGORIES,
-                    key="cs_other_subcategory",
-                    label_visibility="collapsed",
-                )
-
-
-            with submit_col:
-                other_submit = st.button(
-                    "Submit",
-                    type="primary",
-                    use_container_width=True,
-                    disabled=(other_subcategory == "— Select Category —"),
-                    key="cs_other_submit",
-                )
-
-            if other_submit:
-                try:
-                    with st.spinner("Saving Other ticket..."):
-                        submit_cs_other(
-                            subcategory=other_subcategory,
-                            agent_email=st.session_state.agent_email,
-                        )
-                    st.success("✅ Other ticket classification saved successfully.")
-                    st.session_state.mascot_state = "found"
-                    trigger_report_sync("Other ticket classification")
-                except Exception as e:
-                    st.error(f"❌ Classification failed: {e}")
-
         # -----------------------------------------------------
         # RESULTS DISPLAY  (fragment = only this block re-runs
         # when checkboxes / qty / reason change → huge speed win)
         # -----------------------------------------------------
+
 
         @st.fragment
         def _render_order_results_and_actions():
@@ -3929,55 +4125,53 @@ if mode == "Agent":
                 ~status_series.isin(["delivered", "cancelled", "in transit"])
             ).sum()
 
-            # One fused result header: order id + ids + status chips
+            # FOCUS DECK hero — gradient-border Match card (mockup style)
             st.markdown(
                 f"""
-                <div class="glass-card oos-result-hero" style="margin-top:1.25rem;">
-                    <div class="oos-result-hero-top">
-                        <div>
-                            <div class="oos-order-found">
-                                <span class="tag">Match</span>
-                                <span class="id">{esc(order_id)}</span>
-                            </div>
-                            <div class="oos-result-hint">Scroll for refund · classify below</div>
-                        </div>
+                <div class="fd-match-wrap">
+                  <div class="fd-match-card">
+                    <div class="fd-match-badge">♥ Match</div>
+                    <div class="fd-match-label">ORDER ID</div>
+                    <div class="fd-match-id">#{esc(order_id)}</div>
+                    <div class="fd-match-meta">
+                      <span class="fd-meta-chip">ZOP · {esc(zop_id)}</span>
+                      <span class="fd-meta-chip">Seller · {esc(seller_order_id)}</span>
                     </div>
-                    <div class="oos-id-row">
-                        <div class="oos-id-pill"><span>ZOP Order</span><b>{esc(order_id)}</b></div>
-                        <div class="oos-id-pill"><span>ZOP ID</span><b>{esc(zop_id)}</b></div>
-                        <div class="oos-id-pill"><span>Seller Order</span><b>{esc(seller_order_id)}</b></div>
+                    <div class="fd-match-stats">
+                      <div class="fd-mstat"><span>Total</span><b>{total_products}</b></div>
+                      <div class="fd-mstat ok"><span>Delivered</span><b>{delivered}</b></div>
+                      <div class="fd-mstat bad"><span>Cancelled</span><b>{cancelled}</b></div>
+                      <div class="fd-mstat info"><span>Transit</span><b>{in_transit}</b></div>
+                      <div class="fd-mstat warn"><span>Pending</span><b>{pending}</b></div>
                     </div>
-                    <div class="oos-stat-strip">
-                        <div class="oos-stat-chip"><span>Total</span><b>{total_products}</b></div>
-                        <div class="oos-stat-chip ok"><span>Delivered</span><b>{delivered}</b></div>
-                        <div class="oos-stat-chip bad"><span>Cancelled</span><b>{cancelled}</b></div>
-                        <div class="oos-stat-chip info"><span>Transit</span><b>{in_transit}</b></div>
-                        <div class="oos-stat-chip warn"><span>Pending</span><b>{pending}</b></div>
-                    </div>
+                  </div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
 
             # =================================================
-            # PRODUCT LEVEL DETAILS
+            # PRODUCT LEVEL DETAILS — stacked sheet
             # =================================================
 
             st.markdown(
-                '<div class="oos-section-title">Products in this order</div>',
+                '<div class="fd-stack-label"><span>▣</span> Products</div>',
                 unsafe_allow_html=True,
             )
-
+            st.markdown('<div class="fd-stack-sheet">', unsafe_allow_html=True)
             render_product_table(results)
+            st.markdown('</div>', unsafe_allow_html=True)
 
             # =================================================
-            # V2 — CS CLASSIFICATION WORKFLOW
+            # V2 — CS CLASSIFICATION WORKFLOW — stacked sheet
             # =================================================
 
             st.markdown(
-                '<div class="oos-section-title">Classify ticket</div>',
+                '<div class="fd-stack-label"><span>✎</span> Classify ticket</div>',
                 unsafe_allow_html=True,
             )
+
+
 
 
             cs_rows = []
@@ -4109,9 +4303,10 @@ if mode == "Agent":
             # =================================================
 
             st.markdown(
-                '<div class="oos-section-title">💸 Refund Zone </div>',
+                '<div class="fd-stack-label"><span>↺</span> Refund actions</div>',
                 unsafe_allow_html=True,
             )
+
 
             refund_products = []
 
@@ -4174,9 +4369,10 @@ if mode == "Agent":
             # -------------------------------------------------
 
             st.markdown(
-                '<div class="oos-section-title">🎟️ Special Coupon </div>',
+                '<div class="fd-stack-label"><span>✦</span> Special coupon</div>',
                 unsafe_allow_html=True,
             )
+
 
             coupon_toggle_clicked = st.button(
                 "🎟️ Special Coupon",
@@ -4470,11 +4666,60 @@ if mode == "Agent":
 
         _render_order_results_and_actions()
 
+        # =====================================================
+        # OTHER CS WORKFLOW — Focus Deck bottom dock
+        # =====================================================
+
+        st.markdown(
+            '''
+            <div class="fd-bottom-dock">
+              <div class="fd-dock-item fd-dock-item-active">Other Ticket</div>
+              <div class="fd-dock-sep"></div>
+              <div class="fd-dock-hint">No order id needed</div>
+            </div>
+            ''',
+            unsafe_allow_html=True,
+        )
+        with st.expander("Open Other ticket form", expanded=False):
+            st.caption(f"Logged as {st.session_state.agent_email}")
+
+            other_col, submit_col = st.columns([3, 1])
+
+            with other_col:
+                other_subcategory = st.selectbox(
+                    "Other Category",
+                    ["— Select Category —"] + CS_OTHER_SUBCATEGORIES,
+                    key="cs_other_subcategory",
+                    label_visibility="collapsed",
+                )
+
+            with submit_col:
+                other_submit = st.button(
+                    "Submit",
+                    type="primary",
+                    use_container_width=True,
+                    disabled=(other_subcategory == "— Select Category —"),
+                    key="cs_other_submit",
+                )
+
+            if other_submit:
+                try:
+                    with st.spinner("Saving Other ticket..."):
+                        submit_cs_other(
+                            subcategory=other_subcategory,
+                            agent_email=st.session_state.agent_email,
+                        )
+                    st.success("✅ Other ticket classification saved successfully.")
+                    st.session_state.mascot_state = "found"
+                    trigger_report_sync("Other ticket classification")
+                except Exception as e:
+                    st.error(f"❌ Classification failed: {e}")
 
 
 # =========================================================
 # ADMIN DASHBOARD
 # =========================================================
+
 
 
 else:
