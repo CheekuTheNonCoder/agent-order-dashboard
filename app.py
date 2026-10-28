@@ -810,10 +810,148 @@ st.markdown(
         animation: fadeUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
 
+    /* ---- NEW LAYOUT: topbar + command bar + fused result ---- */
+    .oos-topbar {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.4rem;
+        padding: 1.15rem 1.35rem;
+        border-radius: 24px;
+        background:
+            linear-gradient(145deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.02) 50%, transparent 80%),
+            rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.12);
+        backdrop-filter: blur(28px) saturate(170%);
+        -webkit-backdrop-filter: blur(28px) saturate(170%);
+        box-shadow: 0 20px 50px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+        animation: fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    .oos-topbar-title {
+        font-family: 'Sora', sans-serif;
+        font-size: 1.85rem;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1.15;
+        background: linear-gradient(120deg, #fff 30%, #67E8F9 70%, #E879F9 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .oos-topbar-sub {
+        color: var(--text-2);
+        font-size: 0.92rem;
+        margin-top: 0.15rem;
+    }
+    .oos-topbar-chip {
+        flex-shrink: 0;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--accent-2);
+        padding: 0.45rem 0.85rem;
+        border-radius: 999px;
+        background: rgba(34,211,238,0.08);
+        border: 1px solid rgba(34,211,238,0.22);
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        align-self: center;
+    }
+
+    .oos-cmd-label {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-3);
+        margin: 0.2rem 0 0.55rem 0.15rem;
+    }
+
+    .oos-result-hero { padding: 1.35rem 1.5rem !important; }
+    .oos-result-hero-top { margin-bottom: 1rem; }
+    .oos-result-hint {
+        margin-top: 0.35rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--accent-2);
+        opacity: 0.9;
+    }
+
+    .oos-id-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.65rem;
+        margin-bottom: 1rem;
+    }
+    .oos-id-pill {
+        padding: 0.7rem 0.9rem;
+        border-radius: 16px;
+        background: rgba(0,0,0,0.28);
+        border: 1px solid rgba(255,255,255,0.08);
+    }
+    .oos-id-pill span {
+        display: block;
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-3);
+        margin-bottom: 0.2rem;
+    }
+    .oos-id-pill b {
+        font-family: 'Sora', sans-serif;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--text-1);
+        word-break: break-all;
+    }
+
+    .oos-stat-strip {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 0.55rem;
+    }
+    .oos-stat-chip {
+        text-align: center;
+        padding: 0.65rem 0.4rem;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.08);
+    }
+    .oos-stat-chip span {
+        display: block;
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-3);
+        margin-bottom: 0.2rem;
+    }
+    .oos-stat-chip b {
+        font-family: 'Sora', sans-serif;
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: var(--text-1);
+    }
+    .oos-stat-chip.ok b { color: var(--green); text-shadow: 0 0 18px rgba(74,222,128,0.35); }
+    .oos-stat-chip.bad b { color: var(--red); }
+    .oos-stat-chip.info b { color: var(--blue); text-shadow: 0 0 18px rgba(34,211,238,0.3); }
+    .oos-stat-chip.warn b { color: var(--orange); }
+
+    @media (max-width: 900px) {
+        .oos-id-row { grid-template-columns: 1fr; }
+        .oos-stat-strip { grid-template-columns: repeat(3, 1fr); }
+        .oos-topbar { flex-direction: column; }
+        .oos-topbar-chip { max-width: 100%; }
+    }
+
     @keyframes fadeUp {
         from { opacity: 0; transform: translateY(18px) scale(0.98); filter: blur(8px); }
         to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
     }
+
 
     @media (prefers-reduced-motion: reduce) {
         .stApp::before, .stApp::after,
@@ -3623,15 +3761,20 @@ if mode == "Agent":
         current_hour = get_ist_hour()
         greeting_headline, greeting_sub = get_greeting(current_hour)
 
+        # Top command header — not the old stacked title + full-width search
         st.markdown(
-            '<div class="oos-hero">'
-            '<div class="oos-eyebrow"><span class="pulse-dot"></span>Live · Agent workspace</div>'
-            f"<h1>{greeting_headline}</h1>"
-            f'<p class="oos-greeting-sub">{greeting_sub}</p>'
-            "</div>",
+            f'''
+            <div class="oos-topbar">
+                <div class="oos-topbar-left">
+                    <div class="oos-eyebrow"><span class="pulse-dot"></span>Live workspace</div>
+                    <div class="oos-topbar-title">{esc(greeting_headline)}</div>
+                    <div class="oos-topbar-sub">{esc(greeting_sub)}</div>
+                </div>
+                <div class="oos-topbar-chip">Agent · {esc(st.session_state.agent_email)}</div>
+            </div>
+            ''',
             unsafe_allow_html=True,
         )
-
 
         # The cat companion is a floating, draggable desktop-pet style
         # component (see render_cat_companion_widget near the top of this
@@ -3641,19 +3784,30 @@ if mode == "Agent":
         render_cat_companion_widget(get_mascot_state(current_hour))
 
         # -----------------------------------------------------
-        # UNIVERSAL SEARCH
+        # COMMAND BAR SEARCH  (inline search + action — not stacked)
         # -----------------------------------------------------
 
-        search_value = st.text_input(
-            "Universal Search",
-            placeholder="ZOP Order ID · ZOP ID · Seller Order ID · AWB...",
+        st.markdown(
+            '<div class="oos-cmd-label">Search any order · ZOP · Seller ID · AWB</div>',
+            unsafe_allow_html=True,
         )
 
-        search_button = st.button(
-            "🔍 Search ",
-            type="primary",
-            use_container_width=True,
-        )
+        cmd_left, cmd_right = st.columns([5, 1], gap="small")
+        with cmd_left:
+            search_value = st.text_input(
+                "Universal Search",
+                placeholder="Paste order id / zop id / awb…",
+                label_visibility="collapsed",
+                key="agent_universal_search",
+            )
+        with cmd_right:
+            st.markdown('<div style="height:0.15rem"></div>', unsafe_allow_html=True)
+            search_button = st.button(
+                "Search",
+                type="primary",
+                use_container_width=True,
+                key="agent_search_btn",
+            )
 
         if search_button:
 
@@ -3693,8 +3847,8 @@ if mode == "Agent":
         # Compact secondary flow below the primary order search.
         # =====================================================
 
-        with st.expander("🧩 Other Ticket", expanded=False):
-            st.caption(f"No order ID needed · Agent: {st.session_state.agent_email}")
+        with st.expander("Other ticket (no order id)", expanded=False):
+            st.caption(f"Logged as {st.session_state.agent_email}")
 
             other_col, submit_col = st.columns([3, 1])
 
@@ -3705,6 +3859,7 @@ if mode == "Agent":
                     key="cs_other_subcategory",
                     label_visibility="collapsed",
                 )
+
 
             with submit_col:
                 other_submit = st.button(
@@ -3754,42 +3909,6 @@ if mode == "Agent":
 
             seller_order_id = first_row["seller_order_id"]
 
-            st.markdown(
-                f"""
-                <div class="glass-card" style="margin-top:1.4rem;">
-                    <div class="oos-order-found">
-                        <span class="tag">Found</span>
-                        <span class="id">{esc(order_id)}</span>
-                    </div>
-                    <div style="margin-top:0.4rem; font-size:0.85rem; font-weight:600; color:var(--accent-2);">
-                         Scroll Down for Refund
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            # =================================================
-            # IDENTIFIERS
-            # =================================================
-
-            st.markdown(
-                '<div class="oos-section-title">📋 Identifiers </div>',
-                unsafe_allow_html=True,
-            )
-
-            info1, info2, info3 = st.columns(3)
-
-            info1.markdown(id_card("ZOP Order ID", order_id), unsafe_allow_html=True)
-            info2.markdown(id_card("ZOP ID", zop_id), unsafe_allow_html=True)
-            info3.markdown(
-                id_card("Seller Order ID", seller_order_id), unsafe_allow_html=True
-            )
-
-            # =================================================
-            # STATUS SUMMARY
-            # =================================================
-
             status_series = (
                 results["order_status"].fillna("").astype(str).str.strip().str.lower()
             )
@@ -3810,30 +3929,34 @@ if mode == "Agent":
                 ~status_series.isin(["delivered", "cancelled", "in transit"])
             ).sum()
 
+            # One fused result header: order id + ids + status chips
             st.markdown(
-                '<div class="oos-section-title">📊 Status Summary </div>',
+                f"""
+                <div class="glass-card oos-result-hero" style="margin-top:1.25rem;">
+                    <div class="oos-result-hero-top">
+                        <div>
+                            <div class="oos-order-found">
+                                <span class="tag">Match</span>
+                                <span class="id">{esc(order_id)}</span>
+                            </div>
+                            <div class="oos-result-hint">Scroll for refund · classify below</div>
+                        </div>
+                    </div>
+                    <div class="oos-id-row">
+                        <div class="oos-id-pill"><span>ZOP Order</span><b>{esc(order_id)}</b></div>
+                        <div class="oos-id-pill"><span>ZOP ID</span><b>{esc(zop_id)}</b></div>
+                        <div class="oos-id-pill"><span>Seller Order</span><b>{esc(seller_order_id)}</b></div>
+                    </div>
+                    <div class="oos-stat-strip">
+                        <div class="oos-stat-chip"><span>Total</span><b>{total_products}</b></div>
+                        <div class="oos-stat-chip ok"><span>Delivered</span><b>{delivered}</b></div>
+                        <div class="oos-stat-chip bad"><span>Cancelled</span><b>{cancelled}</b></div>
+                        <div class="oos-stat-chip info"><span>Transit</span><b>{in_transit}</b></div>
+                        <div class="oos-stat-chip warn"><span>Pending</span><b>{pending}</b></div>
+                    </div>
+                </div>
+                """,
                 unsafe_allow_html=True,
-            )
-
-            col1, col2, col3, col4, col5 = st.columns(5)
-
-            col1.markdown(
-                stat_card("stat-total", "Total", total_products), unsafe_allow_html=True
-            )
-            col2.markdown(
-                stat_card("stat-delivered", "Delivered", delivered),
-                unsafe_allow_html=True,
-            )
-            col3.markdown(
-                stat_card("stat-cancelled", "Cancelled", cancelled),
-                unsafe_allow_html=True,
-            )
-            col4.markdown(
-                stat_card("stat-transit", "In Transit", in_transit),
-                unsafe_allow_html=True,
-            )
-            col5.markdown(
-                stat_card("stat-pending", "Pending", pending), unsafe_allow_html=True
             )
 
             # =================================================
@@ -3841,7 +3964,7 @@ if mode == "Agent":
             # =================================================
 
             st.markdown(
-                '<div class="oos-section-title">🛍️ Product Breakdown </div>',
+                '<div class="oos-section-title">Products in this order</div>',
                 unsafe_allow_html=True,
             )
 
@@ -3852,9 +3975,10 @@ if mode == "Agent":
             # =================================================
 
             st.markdown(
-                '<div class="oos-section-title">📝 Classify Ticket</div>',
+                '<div class="oos-section-title">Classify ticket</div>',
                 unsafe_allow_html=True,
             )
+
 
             cs_rows = []
             for row_position, row in results.reset_index(drop=True).iterrows():
