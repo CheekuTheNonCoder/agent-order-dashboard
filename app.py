@@ -915,102 +915,118 @@ st.markdown(
         padding: 0.15rem 0.45rem; border-radius: 999px; background: rgba(34,211,238,0.12);
     }
 
-    /* ---- presence strip: mini character cats ---- */
-    .pres-strip {
-        margin: 0 0 1rem 0;
-        padding: 0.55rem 0.75rem;
-        border-radius: 18px;
-        background: rgba(255,255,255,0.03);
-        border: 1px solid rgba(255,255,255,0.1);
-        backdrop-filter: blur(16px);
-    }
-    .pres-label {
-        font-size: 0.62rem;
-        font-weight: 700;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: var(--text-3);
-        margin-bottom: 0.45rem;
-    }
-    .pres-row {
+    /* ---- presence: companion-style floating pets (bottom dock) ---- */
+    .pres-dock {
+        position: fixed;
+        left: 50%;
+        bottom: 18px;
+        transform: translateX(-50%);
+        z-index: 9990;
         display: flex;
         flex-wrap: wrap;
-        gap: 0.55rem;
-        align-items: flex-end;
+        justify-content: center;
+        gap: 0.75rem;
+        max-width: min(96vw, 920px);
+        pointer-events: none;
+        padding: 0.25rem;
     }
-    .pres-chip {
+    .pres-pet {
+        pointer-events: auto;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 0.15rem;
-        min-width: 52px;
-        padding: 0.35rem 0.4rem 0.45rem;
-        border-radius: 14px;
-        background: rgba(255,255,255,0.04);
-        border: 1px solid color-mix(in srgb, var(--tint) 35%, transparent);
-        box-shadow: 0 0 18px color-mix(in srgb, var(--tint) 18%, transparent);
-        transition: transform 0.15s ease;
+        gap: 0.35rem;
+        width: 88px;
     }
-    .pres-chip.is-me {
-        border-color: var(--tint);
-        background: color-mix(in srgb, var(--tint) 12%, transparent);
-    }
-    .pres-name {
-        font-size: 0.58rem;
+    .pres-pet-name {
+        font-size: 0.68rem;
         font-weight: 700;
-        color: var(--text-2);
-        max-width: 64px;
+        color: #E8EEF8;
+        background: rgba(0,0,0,0.55);
+        border: 1px solid rgba(255,255,255,0.12);
+        backdrop-filter: blur(12px);
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        max-width: 88px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
         text-align: center;
     }
-    .pres-chip.is-me .pres-name { color: var(--tint); }
-    .pres-cat {
+    .pres-pet.is-me .pres-pet-name {
+        color: #041018;
+        background: var(--tint);
+        border-color: transparent;
+    }
+    .pres-pet-body {
         position: relative;
-        font-size: 1.45rem;
-        line-height: 1;
-        height: 1.55rem;
+        width: 72px;
+        height: 72px;
+        border-radius: 20px;
+        background:
+            linear-gradient(160deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.06) 40%, transparent 70%),
+            rgba(28, 24, 22, 0.75);
+        border: 1px solid rgba(255,255,255,0.16);
+        box-shadow:
+            0 16px 40px rgba(0,0,0,0.45),
+            0 0 24px color-mix(in srgb, var(--tint) 22%, transparent),
+            inset 0 1px 0 rgba(255,255,255,0.25);
         display: flex;
         align-items: center;
         justify-content: center;
+        backdrop-filter: blur(18px) saturate(160%);
+        -webkit-backdrop-filter: blur(18px) saturate(160%);
     }
-    .pres-prop {
-        position: absolute;
-        right: -6px;
-        top: -4px;
-        font-size: 0.7rem;
+    .pres-pet.is-me .pres-pet-body {
+        border-color: color-mix(in srgb, var(--tint) 55%, white);
+        box-shadow:
+            0 16px 40px rgba(0,0,0,0.45),
+            0 0 32px color-mix(in srgb, var(--tint) 40%, transparent),
+            inset 0 1px 0 rgba(255,255,255,0.3);
+    }
+    .pres-pet-emoji {
+        font-size: 2.15rem;
         line-height: 1;
+        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.35));
+    }
+    .pres-pet-prop {
+        position: absolute;
+        right: 4px;
+        top: 4px;
+        font-size: 0.95rem;
+        line-height: 1;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
     }
     @keyframes presBob {
         0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-3px); }
+        50% { transform: translateY(-5px); }
     }
     @keyframes presJump {
-        0%, 100% { transform: translateY(0) rotate(-4deg); }
-        50% { transform: translateY(-6px) rotate(4deg); }
+        0%, 100% { transform: translateY(0) rotate(-5deg); }
+        50% { transform: translateY(-8px) rotate(5deg); }
     }
     @keyframes presLaugh {
-        0%, 100% { transform: rotate(-6deg) scale(1); }
-        50% { transform: rotate(6deg) scale(1.08); }
+        0%, 100% { transform: rotate(-8deg) scale(1); }
+        50% { transform: rotate(8deg) scale(1.1); }
     }
     @keyframes presDrive {
         0%, 100% { transform: translateX(0); }
-        50% { transform: translateX(4px); }
+        50% { transform: translateX(5px); }
     }
     @keyframes presSway {
-        0%, 100% { transform: rotate(-3deg); }
-        50% { transform: rotate(3deg); }
+        0%, 100% { transform: rotate(-4deg); }
+        50% { transform: rotate(4deg); }
     }
-    .anim-bob .pres-cat { animation: presBob 1.6s ease-in-out infinite; }
-    .anim-jump .pres-cat { animation: presJump 0.9s ease-in-out infinite; }
-    .anim-laugh .pres-cat { animation: presLaugh 0.7s ease-in-out infinite; }
-    .anim-drive .pres-cat { animation: presDrive 1.2s ease-in-out infinite; }
-    .anim-sway .pres-cat, .anim-flow .pres-cat, .anim-wink .pres-cat,
-    .anim-sparkle .pres-cat, .anim-pose .pres-cat, .anim-money .pres-cat {
-        animation: presSway 2s ease-in-out infinite;
+    .anim-bob .pres-pet-body { animation: presBob 1.8s ease-in-out infinite; }
+    .anim-jump .pres-pet-body { animation: presJump 1s ease-in-out infinite; }
+    .anim-laugh .pres-pet-body { animation: presLaugh 0.75s ease-in-out infinite; }
+    .anim-drive .pres-pet-body { animation: presDrive 1.2s ease-in-out infinite; }
+    .anim-sway .pres-pet-body, .anim-flow .pres-pet-body, .anim-wink .pres-pet-body,
+    .anim-sparkle .pres-pet-body, .anim-pose .pres-pet-body, .anim-money .pres-pet-body,
+    .anim-grumpy .pres-pet-body, .anim-idle .pres-pet-body, .anim-steady .pres-pet-body {
+        animation: presSway 2.2s ease-in-out infinite;
     }
-    .anim-grumpy .pres-cat { animation: presSway 2.4s ease-in-out infinite; }
+
 
     /* =========================================================
        FOCUS DECK — leftover chrome (unused, safe)
@@ -2451,7 +2467,10 @@ def get_agent_cat_character(email):
 
 
 def render_presence_strip(current_email=None):
-    """Top strip: small character cats for every agent online right now."""
+    """
+    Companion-style floating pets along the bottom — same vibe as the
+    main cat widget (glass tile + name above), one per online agent.
+    """
     try:
         agents = get_active_agents()
     except Exception:
@@ -2460,28 +2479,32 @@ def render_presence_strip(current_email=None):
     if not agents:
         return
 
-    chips = []
+    pets = []
     for a in agents:
         email = a.get("email") or ""
         ch = get_agent_cat_character(email)
         label = esc(ch["label"])
-        is_me = current_email and email.lower() == current_email.strip().lower()
+        is_me = bool(
+            current_email and email.lower() == current_email.strip().lower()
+        )
         me_class = " is-me" if is_me else ""
         prop = ch.get("prop") or ""
-        chips.append(
-            f'<div class="pres-chip{me_class} anim-{esc(ch.get("anim") or "idle")}" '
+        prop_html = f'<span class="pres-pet-prop">{prop}</span>' if prop else ""
+        pets.append(
+            f'<div class="pres-pet{me_class} anim-{esc(ch.get("anim") or "idle")}" '
             f'style="--tint:{esc(ch["tint"])}" title="{esc(email)}">'
-            f'<div class="pres-name">{label}</div>'
-            f'<div class="pres-cat"><span class="pres-emoji">{ch["emoji"]}</span>'
-            f'<span class="pres-prop">{prop}</span></div>'
-            f"</div>"
+            f'<div class="pres-pet-name">{label}</div>'
+            f'<div class="pres-pet-body">'
+            f'<span class="pres-pet-emoji">{ch["emoji"]}</span>'
+            f"{prop_html}"
+            f"</div></div>"
         )
 
     st.markdown(
-        f'<div class="pres-strip"><div class="pres-label">Online now</div>'
-        f'<div class="pres-row">{"".join(chips)}</div></div>',
+        f'<div class="pres-dock">{"".join(pets)}</div>',
         unsafe_allow_html=True,
     )
+
 
 
 def render_product_table(df):
