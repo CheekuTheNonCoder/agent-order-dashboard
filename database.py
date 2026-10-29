@@ -84,6 +84,8 @@ def initialize_database():
     so this schema check runs only once per app process instead of on
     every single Streamlit rerun (previously this fired on every
     button click / checkbox toggle across the whole app).
+
+    Also ensures agent_presence exists for the live "who's online" strip.
     """
     with get_connection() as conn:
         with conn.cursor() as cur:
@@ -105,6 +107,25 @@ def initialize_database():
 
             if "upload_history" not in tables:
                 raise RuntimeError("upload_history table does not exist in PostgreSQL.")
+
+            # Presence table for multi-agent online strip (safe to create)
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS agent_presence (
+                    agent_email TEXT PRIMARY KEY,
+                    display_name TEXT,
+                    cat_style INT NOT NULL DEFAULT 0,
+                    last_seen TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_agent_presence_last_seen
+                ON agent_presence (last_seen DESC)
+                """
+            )
+
 
 
 # =========================================================
@@ -485,3 +506,75 @@ def get_last_upload():
         with conn.cursor() as cur:
             cur.execute(query)
             return cur.fetchone()
+
+# =========================================================
+# AGENT PRESENCE (who's online strip)
+# =========================================================
+
+PRESENCE_TTL_SECONDS = 180  # seen within 3 minutes = online
+
+
+def upsert_agent_presence(agent_email, display_name=None, cat_style=0):
+    """Mark agent as online / refresh last_seen."""
+    email = (agent_email or "").strip().lower()
+    if not email or "@" not in email:
+        return
+    name = (display_name or email.split("@")[0]).strip()[:64]
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO agent_presence (agent_email, display_name, cat_style, last_seen)
+                VALUES (%s, %s, %s, NOW())
+                ON CONFLICT (agent_email) DO UPDATE SET
+                    display_name = EXCLUDED.display_name,
+                    cat_style = EXCLUDED.cat_style,
+                    last_seen = NOW()
+                """,
+                (email, name, int(cat_style or 0)),
+            )
+
+
+def clear_agent_presence(agent_email):
+    """Remove agent from online strip (logout)."""
+    email = (agent_email or "").strip().lower()
+    if not email:
+        return
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM agent_presence WHERE agent_email = %s",
+                (email,),
+            )
+
+
+def get_active_agents(ttl_seconds=None):
+    """
+    Agents with last_seen within ttl_seconds.
+    Returns list of dicts: email, display_name, cat_style, last_seen
+    """
+    ttl = int(ttl_seconds if ttl_seconds is not None else PRESENCE_TTL_SECONDS)
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT agent_email, display_name, cat_style, last_seen
+                FROM agent_presence
+                WHERE last_seen > NOW() - (%s * INTERVAL '1 second')
+                ORDER BY last_seen DESC
+                """,
+                (ttl,),
+            )
+
+            rows = cur.fetchall()
+    out = []
+    for r in rows:
+        out.append(
+            {
+                "email": r[0],
+                "display_name": r[1] or (r[0].split("@")[0] if r[0] else "agent"),
+                "cat_style": int(r[2] or 0),
+                "last_seen": r[3],
+            }
+        )
+    return out
