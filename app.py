@@ -2466,10 +2466,177 @@ def get_agent_cat_character(email):
     }
 
 
+def _presence_cat_svg(character_key, tint="#67E8F9"):
+    """
+    Full mascot-style SVG cat (same art language as the main companion),
+    with character-specific accessories. character_key is a short id.
+    """
+    # Base body matches the main companion palette
+    base = f'''
+    <svg viewBox="0 0 100 100" width="78" height="78" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="50" cy="88" rx="22" ry="5" fill="#000" opacity="0.18"/>
+      <g class="pc-body">
+        <!-- body -->
+        <ellipse cx="50" cy="62" rx="26" ry="22" fill="#E8D5C4"/>
+        <ellipse cx="50" cy="62" rx="26" ry="22" fill="url(#pcFur)" opacity="0.35"/>
+        <!-- head -->
+        <circle cx="50" cy="38" r="24" fill="#E8D5C4"/>
+        <!-- ears -->
+        <path d="M28 28 L22 8 L40 22 Z" fill="#E8D5C4"/>
+        <path d="M72 28 L78 8 L60 22 Z" fill="#E8D5C4"/>
+        <path d="M30 26 L26 12 L38 22 Z" fill="#F5C6B8"/>
+        <path d="M70 26 L74 12 L62 22 Z" fill="#F5C6B8"/>
+        <!-- face -->
+        <circle cx="41" cy="38" r="3.2" fill="#2C2C2E"/>
+        <circle cx="59" cy="38" r="3.2" fill="#2C2C2E"/>
+        <circle cx="42" cy="37" r="1.1" fill="#fff"/>
+        <circle cx="60" cy="37" r="1.1" fill="#fff"/>
+        <ellipse cx="50" cy="45" rx="3" ry="2.2" fill="#E8A090"/>
+        <path d="M46 50 Q50 54 54 50" fill="none" stroke="#2C2C2E" stroke-width="1.6" stroke-linecap="round"/>
+        <!-- cheeks -->
+        <circle cx="34" cy="44" r="3.5" fill="#F5B8A8" opacity="0.55"/>
+        <circle cx="66" cy="44" r="3.5" fill="#F5B8A8" opacity="0.55"/>
+        <!-- tail -->
+        <path d="M74 68 Q92 58 88 42" fill="none" stroke="#E8D5C4" stroke-width="7" stroke-linecap="round"/>
+      </g>
+      <defs>
+        <radialGradient id="pcFur" cx="40%" cy="35%" r="60%">
+          <stop offset="0%" stop-color="#fff" stop-opacity="0.5"/>
+          <stop offset="100%" stop-color="#C4A484" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+    '''
+
+    # Character accessories (SVG overlays)
+    acc = {
+        "headphones": '''
+          <path d="M28 30 Q28 16 50 16 Q72 16 72 30" fill="none" stroke="#222" stroke-width="4" stroke-linecap="round"/>
+          <rect x="22" y="28" width="10" height="14" rx="3" fill="#333"/>
+          <rect x="68" y="28" width="10" height="14" rx="3" fill="#333"/>
+          <rect x="23" y="30" width="8" height="6" rx="2" fill="{tint}"/>
+          <rect x="69" y="30" width="8" height="6" rx="2" fill="{tint}"/>
+        ''',
+        "cap_smoke": '''
+          <path d="M30 22 Q50 8 70 22 L70 26 L30 26 Z" fill="#1E293B"/>
+          <rect x="28" y="24" width="44" height="6" rx="2" fill="#334155"/>
+          <circle cx="78" cy="48" r="3" fill="#94A3B8" opacity="0.7"/>
+          <circle cx="84" cy="42" r="2.2" fill="#94A3B8" opacity="0.45"/>
+          <circle cx="88" cy="36" r="1.6" fill="#94A3B8" opacity="0.3"/>
+          <line x1="62" y1="48" x2="76" y2="48" stroke="#78716C" stroke-width="2"/>
+        ''',
+        "boss": '''
+          <rect x="38" y="58" width="24" height="18" rx="2" fill="#1E293B"/>
+          <rect x="46" y="58" width="8" height="18" fill="#334155"/>
+          <circle cx="50" cy="14" r="5" fill="#FBBF24"/>
+          <path d="M42 18 L58 18 L55 26 L45 26 Z" fill="#FBBF24"/>
+        ''',
+        "korean_selfie": '''
+          <path d="M35 12 Q50 4 65 12" fill="none" stroke="#2C2C2E" stroke-width="5" stroke-linecap="round"/>
+          <path d="M38 14 L42 28" stroke="#2C2C2E" stroke-width="3"/>
+          <path d="M62 14 L58 28" stroke="#2C2C2E" stroke-width="3"/>
+          <rect x="68" y="40" width="18" height="26" rx="3" fill="#111" stroke="{tint}" stroke-width="1.5"/>
+          <circle cx="77" cy="50" r="5" fill="#334155"/>
+          <circle cx="77" cy="50" r="2.5" fill="{tint}"/>
+        ''',
+        "scooty": '''
+          <circle cx="28" cy="86" r="7" fill="#333" stroke="#666" stroke-width="2"/>
+          <circle cx="62" cy="86" r="7" fill="#333" stroke="#666" stroke-width="2"/>
+          <path d="M28 80 L50 70 L62 80" fill="none" stroke="{tint}" stroke-width="4" stroke-linecap="round"/>
+          <path d="M50 70 L50 58" stroke="{tint}" stroke-width="3"/>
+          <path d="M44 58 L56 58" stroke="#94A3B8" stroke-width="3" stroke-linecap="round"/>
+        ''',
+        "laugh": '''
+          <path d="M42 48 Q50 62 58 48" fill="#2C2C2E"/>
+          <circle cx="36" cy="32" r="2" fill="#F87171" opacity="0.8"/>
+          <circle cx="64" cy="32" r="2" fill="#F87171" opacity="0.8"/>
+          <text x="72" y="28" font-size="14">😂</text>
+        ''',
+        "makeup": '''
+          <circle cx="34" cy="44" r="5" fill="#F472B6" opacity="0.7"/>
+          <circle cx="66" cy="44" r="5" fill="#F472B6" opacity="0.7"/>
+          <path d="M44 50 Q50 56 56 50" fill="none" stroke="#E11D48" stroke-width="2"/>
+          <path d="M36 32 Q41 28 46 32" fill="none" stroke="#2C2C2E" stroke-width="2"/>
+          <path d="M54 32 Q59 28 64 32" fill="none" stroke="#2C2C2E" stroke-width="2"/>
+          <circle cx="78" cy="30" r="4" fill="#F9A8D4"/>
+          <path d="M78 26 L78 20" stroke="#F9A8D4" stroke-width="2"/>
+        ''',
+        "tharki": '''
+          <path d="M36 36 Q41 32 46 36" fill="none" stroke="#2C2C2E" stroke-width="2"/>
+          <path d="M54 38 L64 38" stroke="#2C2C2E" stroke-width="2"/>
+          <path d="M48 52 Q55 58 62 50" fill="none" stroke="#E11D48" stroke-width="2"/>
+          <text x="70" y="30" font-size="12">💘</text>
+        ''',
+        "longhair": '''
+          <path d="M26 30 Q18 55 28 78" fill="none" stroke="#5B3A29" stroke-width="8" stroke-linecap="round"/>
+          <path d="M74 30 Q82 55 72 78" fill="none" stroke="#5B3A29" stroke-width="8" stroke-linecap="round"/>
+          <path d="M30 28 Q22 50 32 72" fill="none" stroke="#7C5A3E" stroke-width="5" stroke-linecap="round"/>
+          <path d="M70 28 Q78 50 68 72" fill="none" stroke="#7C5A3E" stroke-width="5" stroke-linecap="round"/>
+        ''',
+        "neta": '''
+          <ellipse cx="50" cy="16" rx="22" ry="8" fill="#1E3A5F"/>
+          <rect x="32" y="16" width="36" height="8" fill="#1E3A5F"/>
+          <path d="M32 24 L28 36 L36 28 Z" fill="#F8FAFC"/>
+          <rect x="34" y="34" width="12" height="10" rx="1" fill="none" stroke="#111" stroke-width="2"/>
+          <rect x="54" y="34" width="12" height="10" rx="1" fill="none" stroke="#111" stroke-width="2"/>
+          <line x1="46" y1="39" x2="54" y2="39" stroke="#111" stroke-width="2"/>
+          <path d="M44 52 L50 48 L56 52" fill="none" stroke="#2C2C2E" stroke-width="2"/>
+        ''',
+        "tomboy": '''
+          <rect x="32" y="52" width="36" height="20" rx="3" fill="#0EA5E9"/>
+          <circle cx="22" cy="70" r="6" fill="#333"/>
+          <circle cx="78" cy="70" r="6" fill="#333"/>
+          <path d="M28 22 L50 10 L72 22" fill="#1E293B"/>
+        ''',
+        "money": '''
+          <circle cx="78" cy="36" r="10" fill="#FACC15" stroke="#CA8A04" stroke-width="2"/>
+          <text x="74" y="40" font-size="10" font-weight="700" fill="#854D0E">₹</text>
+          <circle cx="22" cy="50" r="7" fill="#FACC15" stroke="#CA8A04" stroke-width="1.5"/>
+          <circle cx="70" cy="70" r="6" fill="#FDE68A" stroke="#CA8A04" stroke-width="1.5"/>
+        ''',
+        "simple": "",
+    }.get(character_key, "")
+
+    acc = acc.replace("{tint}", tint)
+    return base + acc + "</svg>"
+
+
+def _presence_character_key(email):
+    ch = get_agent_cat_character(email)
+    label = (ch.get("label") or "").lower()
+    email_l = (email or "").lower()
+    if any(x in email_l for x in ("support3", "avishek", "abhishek.singh5")):
+        return "headphones", ch
+    if "akash" in email_l:
+        return "cap_smoke", ch
+    if "shruti" in email_l:
+        return "boss", ch
+    if "aryan" in email_l:
+        return "korean_selfie", ch
+    if "raja" in email_l:
+        return "scooty", ch
+    if "ajeet" in email_l:
+        return "laugh", ch
+    if "shilpa" in email_l or "support16" in email_l:
+        return "makeup", ch
+    if "rishabh" in email_l:
+        return "tharki", ch
+    if "rashmi" in email_l:
+        return "longhair", ch
+    if "neha" in email_l:
+        return "neta", ch
+    if "ayushi" in email_l:
+        return "tomboy", ch
+    if "abhishek.kumar1" in email_l:
+        return "money", ch
+    if "rahul" in email_l:
+        return "simple", ch
+    return "simple", ch
+
+
 def render_presence_strip(current_email=None):
     """
-    Companion-style floating pets along the bottom — same vibe as the
-    main cat widget (glass tile + name above), one per online agent.
+    Full mascot-style cats (same look as the main companion widget),
+    one per online agent — fixed bottom row, name above each cat.
     """
     try:
         agents = get_active_agents()
@@ -2479,31 +2646,77 @@ def render_presence_strip(current_email=None):
     if not agents:
         return
 
-    pets = []
+    cards = []
     for a in agents:
         email = a.get("email") or ""
-        ch = get_agent_cat_character(email)
-        label = esc(ch["label"])
+        key, ch = _presence_character_key(email)
+        tint = ch.get("tint") or "#67E8F9"
+        label = html.escape(ch.get("label") or email.split("@")[0])
         is_me = bool(
             current_email and email.lower() == current_email.strip().lower()
         )
-        me_class = " is-me" if is_me else ""
-        prop = ch.get("prop") or ""
-        prop_html = f'<span class="pres-pet-prop">{prop}</span>' if prop else ""
-        pets.append(
-            f'<div class="pres-pet{me_class} anim-{esc(ch.get("anim") or "idle")}" '
-            f'style="--tint:{esc(ch["tint"])}" title="{esc(email)}">'
-            f'<div class="pres-pet-name">{label}</div>'
-            f'<div class="pres-pet-body">'
-            f'<span class="pres-pet-emoji">{ch["emoji"]}</span>'
-            f"{prop_html}"
-            f"</div></div>"
+        me_attr = " is-me" if is_me else ""
+        svg = _presence_cat_svg(key, tint)
+        cards.append(
+            f'<div class="pc-card{me_attr}" style="--tint:{html.escape(tint)}" title="{html.escape(email)}">'
+            f'<div class="pc-name">{label}</div>'
+            f'<div class="pc-tile">{svg}</div>'
+            f"</div>"
         )
 
-    st.markdown(
-        f'<div class="pres-dock">{"".join(pets)}</div>',
-        unsafe_allow_html=True,
-    )
+    n = max(len(cards), 1)
+    height = 130
+    widget_html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"/>
+<style>
+  html,body {{ margin:0; padding:0; background:transparent; overflow:hidden; }}
+  .pc-dock {{
+    display:flex; flex-wrap:wrap; justify-content:center; align-items:flex-end;
+    gap:14px; padding:6px 8px; width:100%; box-sizing:border-box;
+  }}
+  .pc-card {{
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    width:96px;
+  }}
+  .pc-name {{
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size:11px; font-weight:700; color:#E8EEF8;
+    background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.12);
+    padding:3px 10px; border-radius:999px; max-width:96px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    backdrop-filter: blur(10px);
+  }}
+  .pc-card.is-me .pc-name {{
+    color:#041018; background:var(--tint); border-color:transparent;
+  }}
+  .pc-tile {{
+    width:88px; height:88px; border-radius:22px;
+    background: linear-gradient(160deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.05) 45%, transparent 70%),
+                rgba(24, 20, 18, 0.72);
+    border:1px solid rgba(255,255,255,0.16);
+    box-shadow: 0 16px 36px rgba(0,0,0,0.5), 0 0 24px color-mix(in srgb, var(--tint) 25%, transparent),
+                inset 0 1px 0 rgba(255,255,255,0.28);
+    display:flex; align-items:center; justify-content:center;
+    backdrop-filter: blur(16px);
+    animation: pcBob 2s ease-in-out infinite;
+  }}
+  .pc-card.is-me .pc-tile {{
+    border-color: color-mix(in srgb, var(--tint) 60%, white);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.5), 0 0 36px color-mix(in srgb, var(--tint) 45%, transparent),
+                inset 0 1px 0 rgba(255,255,255,0.35);
+  }}
+  .pc-tile svg {{ display:block; }}
+  @keyframes pcBob {{
+    0%,100% {{ transform: translateY(0); }}
+    50% {{ transform: translateY(-5px); }}
+  }}
+</style></head>
+<body>
+  <div class="pc-dock">{''.join(cards)}</div>
+</body></html>"""
+
+    components.html(widget_html, height=height)
+
 
 
 
