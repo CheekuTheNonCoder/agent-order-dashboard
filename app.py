@@ -22,8 +22,12 @@ from database import (
     get_order_count,
     get_last_upload,
     get_connection,
+    upsert_agent_presence,
+    clear_agent_presence,
+    get_active_agents,
 )
 import logging
+
 
 from report_sync import sync_reports, push_cs_delta
 
@@ -258,6 +262,8 @@ if st.session_state.agent_email is None and not st.session_state.get("_cookie_re
     st.session_state._cookie_restore_done = True
     if saved and isinstance(saved, str) and "@" in saved:
         st.session_state.agent_email = saved.strip()
+
+
 
 
 # =========================================================
@@ -909,9 +915,107 @@ st.markdown(
         padding: 0.15rem 0.45rem; border-radius: 999px; background: rgba(34,211,238,0.12);
     }
 
+    /* ---- presence strip: mini character cats ---- */
+    .pres-strip {
+        margin: 0 0 1rem 0;
+        padding: 0.55rem 0.75rem;
+        border-radius: 18px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.1);
+        backdrop-filter: blur(16px);
+    }
+    .pres-label {
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-3);
+        margin-bottom: 0.45rem;
+    }
+    .pres-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        align-items: flex-end;
+    }
+    .pres-chip {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.15rem;
+        min-width: 52px;
+        padding: 0.35rem 0.4rem 0.45rem;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid color-mix(in srgb, var(--tint) 35%, transparent);
+        box-shadow: 0 0 18px color-mix(in srgb, var(--tint) 18%, transparent);
+        transition: transform 0.15s ease;
+    }
+    .pres-chip.is-me {
+        border-color: var(--tint);
+        background: color-mix(in srgb, var(--tint) 12%, transparent);
+    }
+    .pres-name {
+        font-size: 0.58rem;
+        font-weight: 700;
+        color: var(--text-2);
+        max-width: 64px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        text-align: center;
+    }
+    .pres-chip.is-me .pres-name { color: var(--tint); }
+    .pres-cat {
+        position: relative;
+        font-size: 1.45rem;
+        line-height: 1;
+        height: 1.55rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .pres-prop {
+        position: absolute;
+        right: -6px;
+        top: -4px;
+        font-size: 0.7rem;
+        line-height: 1;
+    }
+    @keyframes presBob {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-3px); }
+    }
+    @keyframes presJump {
+        0%, 100% { transform: translateY(0) rotate(-4deg); }
+        50% { transform: translateY(-6px) rotate(4deg); }
+    }
+    @keyframes presLaugh {
+        0%, 100% { transform: rotate(-6deg) scale(1); }
+        50% { transform: rotate(6deg) scale(1.08); }
+    }
+    @keyframes presDrive {
+        0%, 100% { transform: translateX(0); }
+        50% { transform: translateX(4px); }
+    }
+    @keyframes presSway {
+        0%, 100% { transform: rotate(-3deg); }
+        50% { transform: rotate(3deg); }
+    }
+    .anim-bob .pres-cat { animation: presBob 1.6s ease-in-out infinite; }
+    .anim-jump .pres-cat { animation: presJump 0.9s ease-in-out infinite; }
+    .anim-laugh .pres-cat { animation: presLaugh 0.7s ease-in-out infinite; }
+    .anim-drive .pres-cat { animation: presDrive 1.2s ease-in-out infinite; }
+    .anim-sway .pres-cat, .anim-flow .pres-cat, .anim-wink .pres-cat,
+    .anim-sparkle .pres-cat, .anim-pose .pres-cat, .anim-money .pres-cat {
+        animation: presSway 2s ease-in-out infinite;
+    }
+    .anim-grumpy .pres-cat { animation: presSway 2.4s ease-in-out infinite; }
+
     /* =========================================================
        FOCUS DECK — leftover chrome (unused, safe)
        ========================================================= */
+
 
     .fd-nav {
         display: flex;
@@ -1400,7 +1504,8 @@ def render_cat_companion_widget(context_state="idle"):
 <div id="oos-cat-root" data-context-state="{safe_state}">
   <div id="oos-cat-wrap">
     <div class="cat-speech" id="oos-cat-speech"></div>
-    <svg viewBox="0 0 100 100" width="86" height="86" id="oos-cat-svg">
+    <svg viewBox="0 0 100 100" width="64" height="64" id="oos-cat-svg">
+
       <defs>
         <linearGradient id="catGradient" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stop-color="#F6DCB8"/>
@@ -1539,11 +1644,12 @@ def render_cat_companion_widget(context_state="idle"):
 
   #oos-cat-wrap {{
     position: absolute;
-    /* default: upper-left corner of its lane */
+    /* default: upper-left corner of its lane — smaller pet */
     left: 4px;
     top: 4px;
-    width: 96px;
-    height: 108px;
+    width: 72px;
+    height: 84px;
+
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -2140,7 +2246,8 @@ def render_cat_companion_widget(context_state="idle"):
     # A real, visible box (not 0x0) — width is left unset so Streamlit
     # stretches it to the full column width, giving the cat a wide lane
     # to roam and drag around in without needing to escape its iframe.
-    components.html(widget_html, height=150)
+    components.html(widget_html, height=110)
+
 
 
 def status_badge(status):
@@ -2185,7 +2292,200 @@ def esc(value):
     return html.escape(str(value))
 
 
+# =========================================================
+# AGENT CAT CHARACTERS (presence strip)
+# =========================================================
+
+# Each known agent gets a unique mini-cat vibe.
+# Unknown emails fall back to a simple neutral cat.
+AGENT_CAT_CHARACTERS = {
+    # Avishek (music lover — headphones, cute playful)
+    "support3@shiprocket.com": {
+        "label": "Avishek",
+        "emoji": "🐱",
+        "prop": "🎧",
+        "anim": "bob",
+        "tint": "#67E8F9",
+    },
+    "avisheksingh406@gmail.com": {
+        "label": "Avishek",
+        "emoji": "🐱",
+        "prop": "🎧",
+        "anim": "bob",
+        "tint": "#67E8F9",
+    },
+    "abhishek.singh5@gmail.com": {
+        "label": "Avishek",
+        "emoji": "🐱",
+        "prop": "🎧",
+        "anim": "bob",
+        "tint": "#67E8F9",
+    },
+    # Akash — cap + sutta
+    "akash917030@gmail.com": {
+        "label": "Akash",
+        "emoji": "😺",
+        "prop": "🧢🚬",
+        "anim": "sway",
+        "tint": "#FBBF24",
+    },
+    "v_akash.sahu@shiprocket.com": {
+        "label": "Akash S.",
+        "emoji": "😺",
+        "prop": "🧢🚬",
+        "anim": "sway",
+        "tint": "#FBBF24",
+    },
+    # Shruti — boss
+    "shruti.sarojinee@shiprocket.com": {
+        "label": "Shruti",
+        "emoji": "🐯",
+        "prop": "👔",
+        "anim": "steady",
+        "tint": "#A78BFA",
+    },
+    # Rahul — simple
+    "rahul.kumar@shiprocket.com": {
+        "label": "Rahul",
+        "emoji": "🐈",
+        "prop": "",
+        "anim": "idle",
+        "tint": "#94A3B8",
+    },
+    # Aryan — Korean hair + selfie
+    "v_aryan@shiprocket.com": {
+        "label": "Aryan",
+        "emoji": "😸",
+        "prop": "💇📱",
+        "anim": "pose",
+        "tint": "#F472B6",
+    },
+    # Raja — scooty
+    "v_raja.tomar@shiprocket.com": {
+        "label": "Raja",
+        "emoji": "🙀",
+        "prop": "🛵",
+        "anim": "drive",
+        "tint": "#34D399",
+    },
+    # Ajeet — crazy laughing
+    "v_ajeet@shiprocket.com": {
+        "label": "Ajeet",
+        "emoji": "😹",
+        "prop": "😂",
+        "anim": "laugh",
+        "tint": "#FB923C",
+    },
+    # Shilpa / support16 — makeup heroine
+    "v_shilpa.negi@shiprocket.com": {
+        "label": "Shilpa",
+        "emoji": "😻",
+        "prop": "💄✨",
+        "anim": "sparkle",
+        "tint": "#E879F9",
+    },
+    "support16@shiprocket.com": {
+        "label": "Support16",
+        "emoji": "😻",
+        "prop": "💄✨",
+        "anim": "sparkle",
+        "tint": "#E879F9",
+    },
+    # Rishabh — tharki
+    "v_rishabh.yadav@shiprocket.com": {
+        "label": "Rishabh",
+        "emoji": "😼",
+        "prop": "💘",
+        "anim": "wink",
+        "tint": "#F43F5E",
+    },
+    # Rashmi — long flowing hair
+    "v_rashmi@shiprocket.com": {
+        "label": "Rashmi",
+        "emoji": "😺",
+        "prop": "💇‍♀️",
+        "anim": "flow",
+        "tint": "#C084FC",
+    },
+    # Neha — neta topi + specs + khisiyani
+    "v_neha.chhapoliya@shiprocket.com": {
+        "label": "Neha",
+        "emoji": "😾",
+        "prop": "🎩👓",
+        "anim": "grumpy",
+        "tint": "#64748B",
+    },
+    # Ayushi — tomboy jump
+    "ayushi.sharma2@shiprocket.com": {
+        "label": "Ayushi",
+        "emoji": "🐈‍⬛",
+        "prop": "🛹",
+        "anim": "jump",
+        "tint": "#22D3EE",
+    },
+    # Abhishek manager — money
+    "abhishek.kumar1@shiprocket.com": {
+        "label": "Abhishek M.",
+        "emoji": "🐱",
+        "prop": "💰",
+        "anim": "money",
+        "tint": "#FACC15",
+    },
+}
+
+
+def get_agent_cat_character(email):
+    key = (email or "").strip().lower()
+    if key in AGENT_CAT_CHARACTERS:
+        return AGENT_CAT_CHARACTERS[key]
+    # fallback — simple unique-ish tint from hash
+    h = sum(ord(c) for c in key) if key else 0
+    tints = ["#94A3B8", "#67E8F9", "#A78BFA", "#F9A8D4", "#86EFAC"]
+    return {
+        "label": (key.split("@")[0] if key else "agent")[:12],
+        "emoji": "🐱",
+        "prop": "",
+        "anim": "idle",
+        "tint": tints[h % len(tints)],
+    }
+
+
+def render_presence_strip(current_email=None):
+    """Top strip: small character cats for every agent online right now."""
+    try:
+        agents = get_active_agents()
+    except Exception:
+        agents = []
+
+    if not agents:
+        return
+
+    chips = []
+    for a in agents:
+        email = a.get("email") or ""
+        ch = get_agent_cat_character(email)
+        label = esc(ch["label"])
+        is_me = current_email and email.lower() == current_email.strip().lower()
+        me_class = " is-me" if is_me else ""
+        prop = ch.get("prop") or ""
+        chips.append(
+            f'<div class="pres-chip{me_class} anim-{esc(ch.get("anim") or "idle")}" '
+            f'style="--tint:{esc(ch["tint"])}" title="{esc(email)}">'
+            f'<div class="pres-name">{label}</div>'
+            f'<div class="pres-cat"><span class="pres-emoji">{ch["emoji"]}</span>'
+            f'<span class="pres-prop">{prop}</span></div>'
+            f"</div>"
+        )
+
+    st.markdown(
+        f'<div class="pres-strip"><div class="pres-label">Online now</div>'
+        f'<div class="pres-row">{"".join(chips)}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+
 def render_product_table(df):
+
     """Render the product/company table as a premium HTML table with status badges."""
 
     rows_html = []
@@ -3995,7 +4295,17 @@ def render_agent_login():
                     max_age=60 * 60 * 24 * 30,  # 30 days
                     same_site="lax",
                 )
+                try:
+                    ch = get_agent_cat_character(cleaned_email)
+                    upsert_agent_presence(
+                        cleaned_email,
+                        display_name=ch.get("label"),
+                        cat_style=0,
+                    )
+                except Exception:
+                    pass
                 st.rerun()
+
 
 
 
@@ -4045,7 +4355,10 @@ with st.sidebar:
         )
 
         if st.button("Logout", use_container_width=True, key="agent_logout_btn"):
-
+            try:
+                clear_agent_presence(st.session_state.agent_email)
+            except Exception:
+                pass
             st.session_state.agent_email = None
             st.session_state.last_search_results = None
             st.session_state.show_refund_confirm = False
@@ -4056,6 +4369,7 @@ with st.sidebar:
             except Exception:
                 pass
             st.rerun()
+
 
 
 
@@ -4075,6 +4389,17 @@ if mode == "Agent":
         current_hour = get_ist_hour()
         greeting_headline, greeting_sub = get_greeting(current_hour)
 
+        # Heartbeat — stay on the online strip while using the dashboard
+        try:
+            ch = get_agent_cat_character(st.session_state.agent_email)
+            upsert_agent_presence(
+                st.session_state.agent_email,
+                display_name=ch.get("label"),
+                cat_style=0,
+            )
+        except Exception:
+            pass
+
         # -------- COMMAND CENTER top identity --------
         st.markdown(
             f'''
@@ -4091,6 +4416,10 @@ if mode == "Agent":
             ''',
             unsafe_allow_html=True,
         )
+
+        # Who's online — small character cats
+        render_presence_strip(st.session_state.agent_email)
+
 
 
 
