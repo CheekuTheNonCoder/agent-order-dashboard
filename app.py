@@ -2257,14 +2257,31 @@ def render_cat_companion_widget(context_state="idle"):
     wrap.style.top = clamped.y + 'px';
     savePosition(clamped.x, clamped.y);
   }});
+
+  // Pin this iframe to the parent page bottom-left (frees top content)
+  try {{
+    var iframe = window.frameElement;
+    if (iframe) {{
+      iframe.style.position = 'fixed';
+      iframe.style.left = '14px';
+      iframe.style.bottom = '14px';
+      iframe.style.top = 'auto';
+      iframe.style.right = 'auto';
+      iframe.style.width = '110px';
+      iframe.style.height = '120px';
+      iframe.style.zIndex = '9998';
+      iframe.style.border = 'none';
+      iframe.style.background = 'transparent';
+      iframe.style.overflow = 'hidden';
+    }}
+  }} catch (err) {{}}
 }})();
 </script>
 """
 
-    # A real, visible box (not 0x0) — width is left unset so Streamlit
-    # stretches it to the full column width, giving the cat a wide lane
-    # to roam and drag around in without needing to escape its iframe.
-    components.html(widget_html, height=110)
+    # Lane is tiny in-flow; JS pins iframe to bottom-left of the app.
+    components.html(widget_html, height=1)
+
 
 
 
@@ -2545,9 +2562,17 @@ def _presence_cat_svg(character_key, tint="#67E8F9", uid="0"):
           <path d="M44 56 Q50 52 56 56" fill="none" stroke="#2C2C2E" stroke-width="1.5"/>
         ''',
         "korean_selfie": f'''
-          <path d="M32 10 Q50 0 68 10" fill="none" stroke="#1a1a1a" stroke-width="6" stroke-linecap="round"/>
-          <path d="M36 12 L40 30" stroke="#1a1a1a" stroke-width="3.5" stroke-linecap="round"/>
-          <path d="M64 12 L60 30" stroke="#1a1a1a" stroke-width="3.5" stroke-linecap="round"/>
+          <!-- Korean mid-part long hair -->
+          <path d="M50 6 L42 8 L28 22 L22 48 L26 78 L32 52 L36 28 L50 14 Z" fill="#1a1a1a"/>
+          <path d="M50 6 L58 8 L72 22 L78 48 L74 78 L68 52 L64 28 L50 14 Z" fill="#1a1a1a"/>
+          <path d="M50 8 L46 10 L38 24 L34 44" fill="none" stroke="#2a2a2a" stroke-width="4" stroke-linecap="round"/>
+          <path d="M50 8 L54 10 L62 24 L66 44" fill="none" stroke="#2a2a2a" stroke-width="4" stroke-linecap="round"/>
+          <path d="M28 40 Q18 58 30 82" fill="none" stroke="#111" stroke-width="7" stroke-linecap="round"/>
+          <path d="M72 40 Q82 58 70 82" fill="none" stroke="#111" stroke-width="7" stroke-linecap="round"/>
+          <path d="M32 36 Q22 55 34 78" fill="none" stroke="#333" stroke-width="4" stroke-linecap="round"/>
+          <path d="M68 36 Q78 55 66 78" fill="none" stroke="#333" stroke-width="4" stroke-linecap="round"/>
+          <!-- curtain bangs over forehead -->
+          <path d="M36 22 Q50 28 64 22" fill="none" stroke="#1a1a1a" stroke-width="5" stroke-linecap="round"/>
           <g class="pc-phone">
             <rect x="70" y="42" width="20" height="30" rx="3" fill="#111" stroke="{tint}" stroke-width="1.6"/>
             <circle cx="80" cy="54" r="6" fill="#1E293B"/>
@@ -2555,6 +2580,7 @@ def _presence_cat_svg(character_key, tint="#67E8F9", uid="0"):
             <rect x="76" y="66" width="8" height="2" rx="1" fill="#333"/>
           </g>
         ''',
+
         "scooty": f'''
           <g class="pc-scooty">
             <circle cx="30" cy="98" r="8" fill="#222" stroke="#555" stroke-width="2"/>
@@ -2702,8 +2728,8 @@ def render_presence_strip(current_email=None):
             f"</div>"
         )
 
-    # Horizontal row (same as before) — not vertical stack
-    height = 128
+    # Professional compact horizontal strip
+    height = 118
     widget_html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"/>
 <style>
@@ -2711,46 +2737,42 @@ def render_presence_strip(current_email=None):
   .pc-dock {{
     display:flex; flex-direction:row; flex-wrap:wrap;
     justify-content:flex-start; align-items:flex-end;
-    gap:12px; padding:4px 2px; width:100%; box-sizing:border-box;
+    gap:10px; padding:6px 8px; width:100%; box-sizing:border-box;
+    border-radius:16px;
+    background:rgba(255,255,255,0.03);
+    border:1px solid rgba(255,255,255,0.08);
   }}
   .pc-card {{
-    display:flex; flex-direction:column; align-items:center; gap:5px;
-    width:96px; flex-shrink:0;
-    animation: pcEnter 0.5s cubic-bezier(0.16,1,0.3,1) both;
-    animation-delay: var(--d, 0s);
-  }}
-
-  @keyframes pcEnter {{
-    from {{ opacity:0; transform: translateY(12px) scale(0.92); }}
-    to {{ opacity:1; transform: none; }}
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    width:84px; flex-shrink:0;
   }}
   .pc-name {{
     font-family: system-ui, -apple-system, sans-serif;
-    font-size:11px; font-weight:700; color:#E8EEF8;
-    background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.12);
-    padding:3px 10px; border-radius:999px; max-width:100px;
+    font-size:10px; font-weight:650; letter-spacing:0.01em;
+    color:rgba(232,238,248,0.9);
+    background:rgba(0,0,0,0.4);
+    border:1px solid rgba(255,255,255,0.1);
+    padding:2px 8px; border-radius:999px; max-width:84px;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-    backdrop-filter: blur(10px);
+
   }}
   .pc-card.is-me .pc-name {{
-    color:#041018; background:var(--tint); border-color:transparent;
+    color:#041018; background:var(--tint); border-color:transparent; font-weight:700;
   }}
   .pc-tile {{
-    width:92px; height:100px; border-radius:22px;
-    background: linear-gradient(160deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.05) 45%, transparent 70%),
-                rgba(24, 20, 18, 0.78);
-    border:1px solid rgba(255,255,255,0.16);
-    box-shadow: 0 16px 36px rgba(0,0,0,0.5), 0 0 24px color-mix(in srgb, var(--tint) 28%, transparent),
-                inset 0 1px 0 rgba(255,255,255,0.28);
+    width:78px; height:86px; border-radius:18px;
+    background: linear-gradient(165deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.03) 50%, transparent 75%),
+                rgba(18, 16, 20, 0.85);
+    border:1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 10px 28px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.18);
     display:flex; align-items:center; justify-content:center;
-    backdrop-filter: blur(16px);
-    cursor: grab;
   }}
   .pc-card.is-me .pc-tile {{
-    border-color: color-mix(in srgb, var(--tint) 60%, white);
-    box-shadow: 0 16px 40px rgba(0,0,0,0.5), 0 0 36px color-mix(in srgb, var(--tint) 45%, transparent),
-                inset 0 1px 0 rgba(255,255,255,0.35);
+    border-color: color-mix(in srgb, var(--tint) 50%, rgba(255,255,255,0.2));
+    box-shadow: 0 10px 28px rgba(0,0,0,0.4), 0 0 18px color-mix(in srgb, var(--tint) 28%, transparent),
+                inset 0 1px 0 rgba(255,255,255,0.2);
   }}
+
   .pc-tile svg {{ display:block; overflow:visible; }}
   /* character motion */
   .anim-bob .pc-tile {{ animation: bob 1.8s ease-in-out infinite; }}
@@ -5944,4 +5966,3 @@ else:
         else:
 
             st.info("No order dump has been uploaded yet.")
-
