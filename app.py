@@ -2401,12 +2401,13 @@ AGENT_CAT_CHARACTERS = {
         "tint": "#E879F9",
     },
     "support16@shiprocket.com": {
-        "label": "Support16",
+        "label": "Shikha",
         "emoji": "😻",
         "prop": "💄✨",
         "anim": "sparkle",
         "tint": "#E879F9",
     },
+
     # Rishabh — tharki
     "v_rishabh.yadav@shiprocket.com": {
         "label": "Rishabh",
@@ -2466,138 +2467,167 @@ def get_agent_cat_character(email):
     }
 
 
-def _presence_cat_svg(character_key, tint="#67E8F9"):
+def _presence_cat_svg(character_key, tint="#67E8F9", uid="0"):
     """
-    Full mascot-style SVG cat (same art language as the main companion),
-    with character-specific accessories. character_key is a short id.
+    Detailed mascot-style SVG cat (matches main companion art),
+    with richer face + character accessories. uid keeps gradient ids unique.
     """
-    # Base body matches the main companion palette
+    g = f"pc{uid}"
+    # Richer base cat
     base = f'''
-    <svg viewBox="0 0 100 100" width="78" height="78" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="50" cy="88" rx="22" ry="5" fill="#000" opacity="0.18"/>
+    <svg viewBox="0 0 100 110" width="86" height="94" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="50" cy="102" rx="24" ry="5" fill="#000" opacity="0.2"/>
       <g class="pc-body">
-        <!-- body -->
-        <ellipse cx="50" cy="62" rx="26" ry="22" fill="#E8D5C4"/>
-        <ellipse cx="50" cy="62" rx="26" ry="22" fill="url(#pcFur)" opacity="0.35"/>
-        <!-- head -->
-        <circle cx="50" cy="38" r="24" fill="#E8D5C4"/>
-        <!-- ears -->
-        <path d="M28 28 L22 8 L40 22 Z" fill="#E8D5C4"/>
-        <path d="M72 28 L78 8 L60 22 Z" fill="#E8D5C4"/>
-        <path d="M30 26 L26 12 L38 22 Z" fill="#F5C6B8"/>
-        <path d="M70 26 L74 12 L62 22 Z" fill="#F5C6B8"/>
-        <!-- face -->
-        <circle cx="41" cy="38" r="3.2" fill="#2C2C2E"/>
-        <circle cx="59" cy="38" r="3.2" fill="#2C2C2E"/>
-        <circle cx="42" cy="37" r="1.1" fill="#fff"/>
-        <circle cx="60" cy="37" r="1.1" fill="#fff"/>
-        <ellipse cx="50" cy="45" rx="3" ry="2.2" fill="#E8A090"/>
-        <path d="M46 50 Q50 54 54 50" fill="none" stroke="#2C2C2E" stroke-width="1.6" stroke-linecap="round"/>
-        <!-- cheeks -->
-        <circle cx="34" cy="44" r="3.5" fill="#F5B8A8" opacity="0.55"/>
-        <circle cx="66" cy="44" r="3.5" fill="#F5B8A8" opacity="0.55"/>
-        <!-- tail -->
-        <path d="M74 68 Q92 58 88 42" fill="none" stroke="#E8D5C4" stroke-width="7" stroke-linecap="round"/>
+        <path class="pc-tail" d="M76 72 Q98 62 94 38" fill="none" stroke="#E8D5C4" stroke-width="8" stroke-linecap="round"/>
+        <path d="M76 72 Q98 62 94 38" fill="none" stroke="#C4A484" stroke-width="3" stroke-linecap="round" opacity="0.35"/>
+        <ellipse cx="50" cy="70" rx="28" ry="24" fill="#E8D5C4"/>
+        <ellipse cx="50" cy="70" rx="28" ry="24" fill="url(#{g}Fur)" opacity="0.4"/>
+        <circle cx="50" cy="40" r="26" fill="#E8D5C4"/>
+        <circle cx="50" cy="40" r="26" fill="url(#{g}Fur)" opacity="0.25"/>
+        <path d="M27 30 L18 4 L42 22 Z" fill="#E8D5C4"/>
+        <path d="M73 30 L82 4 L58 22 Z" fill="#E8D5C4"/>
+        <path d="M29 28 L23 10 L40 22 Z" fill="#F0B8A8"/>
+        <path d="M71 28 L77 10 L60 22 Z" fill="#F0B8A8"/>
+        <ellipse cx="39" cy="40" rx="4.2" ry="4.8" fill="#2C2C2E"/>
+        <ellipse cx="61" cy="40" rx="4.2" ry="4.8" fill="#2C2C2E"/>
+        <circle cx="40.5" cy="38.5" r="1.5" fill="#fff"/>
+        <circle cx="62.5" cy="38.5" r="1.5" fill="#fff"/>
+        <circle cx="38" cy="42" r="0.7" fill="#67E8F9" opacity="0.7"/>
+        <circle cx="60" cy="42" r="0.7" fill="#67E8F9" opacity="0.7"/>
+        <ellipse cx="50" cy="48" rx="3.4" ry="2.5" fill="#E89580"/>
+        <path d="M50 50.5 L50 53.5" stroke="#C47A68" stroke-width="1.2"/>
+        <path class="pc-mouth" d="M44 56 Q50 61 56 56" fill="none" stroke="#2C2C2E" stroke-width="1.8" stroke-linecap="round"/>
+        <circle cx="32" cy="48" r="4.2" fill="#F5B8A8" opacity="0.6"/>
+        <circle cx="68" cy="48" r="4.2" fill="#F5B8A8" opacity="0.6"/>
+        <path d="M28 46 Q18 44 14 40" fill="none" stroke="#C4A484" stroke-width="1.2" opacity="0.7"/>
+        <path d="M28 50 Q16 50 12 48" fill="none" stroke="#C4A484" stroke-width="1.2" opacity="0.7"/>
+        <path d="M72 46 Q82 44 86 40" fill="none" stroke="#C4A484" stroke-width="1.2" opacity="0.7"/>
+        <path d="M72 50 Q84 50 88 48" fill="none" stroke="#C4A484" stroke-width="1.2" opacity="0.7"/>
+        <ellipse cx="40" cy="82" rx="7" ry="5" fill="#D4B8A0"/>
+        <ellipse cx="60" cy="82" rx="7" ry="5" fill="#D4B8A0"/>
       </g>
       <defs>
-        <radialGradient id="pcFur" cx="40%" cy="35%" r="60%">
-          <stop offset="0%" stop-color="#fff" stop-opacity="0.5"/>
+        <radialGradient id="{g}Fur" cx="35%" cy="30%" r="65%">
+          <stop offset="0%" stop-color="#fff" stop-opacity="0.55"/>
           <stop offset="100%" stop-color="#C4A484" stop-opacity="0"/>
         </radialGradient>
       </defs>
     '''
 
-    # Character accessories (SVG overlays)
     acc = {
-        "headphones": '''
-          <path d="M28 30 Q28 16 50 16 Q72 16 72 30" fill="none" stroke="#222" stroke-width="4" stroke-linecap="round"/>
-          <rect x="22" y="28" width="10" height="14" rx="3" fill="#333"/>
-          <rect x="68" y="28" width="10" height="14" rx="3" fill="#333"/>
-          <rect x="23" y="30" width="8" height="6" rx="2" fill="{tint}"/>
-          <rect x="69" y="30" width="8" height="6" rx="2" fill="{tint}"/>
+        "headphones": f'''
+          <path d="M26 32 Q26 12 50 12 Q74 12 74 32" fill="none" stroke="#1a1a1a" stroke-width="4.5" stroke-linecap="round"/>
+          <rect x="18" y="30" width="12" height="16" rx="4" fill="#222"/>
+          <rect x="70" y="30" width="12" height="16" rx="4" fill="#222"/>
+          <rect x="20" y="33" width="8" height="7" rx="2" fill="{tint}"/>
+          <rect x="72" y="33" width="8" height="7" rx="2" fill="{tint}"/>
+          <path d="M30 38 Q50 48 70 38" fill="none" stroke="#333" stroke-width="1.5" opacity="0.5"/>
         ''',
         "cap_smoke": '''
-          <path d="M30 22 Q50 8 70 22 L70 26 L30 26 Z" fill="#1E293B"/>
-          <rect x="28" y="24" width="44" height="6" rx="2" fill="#334155"/>
-          <circle cx="78" cy="48" r="3" fill="#94A3B8" opacity="0.7"/>
-          <circle cx="84" cy="42" r="2.2" fill="#94A3B8" opacity="0.45"/>
-          <circle cx="88" cy="36" r="1.6" fill="#94A3B8" opacity="0.3"/>
-          <line x1="62" y1="48" x2="76" y2="48" stroke="#78716C" stroke-width="2"/>
+          <path d="M28 24 Q50 6 72 24 L72 28 L28 28 Z" fill="#0F172A"/>
+          <rect x="26" y="26" width="48" height="7" rx="2" fill="#1E293B"/>
+          <rect x="24" y="28" width="18" height="4" rx="1" fill="#334155"/>
+          <g class="pc-smoke">
+            <circle cx="80" cy="50" r="3.5" fill="#94A3B8" opacity="0.65"/>
+            <circle cx="86" cy="42" r="2.6" fill="#94A3B8" opacity="0.4"/>
+            <circle cx="90" cy="34" r="1.8" fill="#94A3B8" opacity="0.25"/>
+          </g>
+          <line x1="64" y1="52" x2="78" y2="50" stroke="#78716C" stroke-width="2.2" stroke-linecap="round"/>
+          <circle cx="64" cy="52" r="2" fill="#44403C"/>
         ''',
         "boss": '''
-          <rect x="38" y="58" width="24" height="18" rx="2" fill="#1E293B"/>
-          <rect x="46" y="58" width="8" height="18" fill="#334155"/>
-          <circle cx="50" cy="14" r="5" fill="#FBBF24"/>
-          <path d="M42 18 L58 18 L55 26 L45 26 Z" fill="#FBBF24"/>
+          <rect x="36" y="64" width="28" height="22" rx="2" fill="#0F172A"/>
+          <rect x="46" y="64" width="8" height="22" fill="#1E293B"/>
+          <circle cx="50" cy="12" r="6" fill="#FBBF24"/>
+          <path d="M40 18 L60 18 L56 28 L44 28 Z" fill="#F59E0B"/>
+          <path d="M44 56 Q50 52 56 56" fill="none" stroke="#2C2C2E" stroke-width="1.5"/>
         ''',
-        "korean_selfie": '''
-          <path d="M35 12 Q50 4 65 12" fill="none" stroke="#2C2C2E" stroke-width="5" stroke-linecap="round"/>
-          <path d="M38 14 L42 28" stroke="#2C2C2E" stroke-width="3"/>
-          <path d="M62 14 L58 28" stroke="#2C2C2E" stroke-width="3"/>
-          <rect x="68" y="40" width="18" height="26" rx="3" fill="#111" stroke="{tint}" stroke-width="1.5"/>
-          <circle cx="77" cy="50" r="5" fill="#334155"/>
-          <circle cx="77" cy="50" r="2.5" fill="{tint}"/>
+        "korean_selfie": f'''
+          <path d="M32 10 Q50 0 68 10" fill="none" stroke="#1a1a1a" stroke-width="6" stroke-linecap="round"/>
+          <path d="M36 12 L40 30" stroke="#1a1a1a" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M64 12 L60 30" stroke="#1a1a1a" stroke-width="3.5" stroke-linecap="round"/>
+          <g class="pc-phone">
+            <rect x="70" y="42" width="20" height="30" rx="3" fill="#111" stroke="{tint}" stroke-width="1.6"/>
+            <circle cx="80" cy="54" r="6" fill="#1E293B"/>
+            <circle cx="80" cy="54" r="3" fill="{tint}"/>
+            <rect x="76" y="66" width="8" height="2" rx="1" fill="#333"/>
+          </g>
         ''',
-        "scooty": '''
-          <circle cx="28" cy="86" r="7" fill="#333" stroke="#666" stroke-width="2"/>
-          <circle cx="62" cy="86" r="7" fill="#333" stroke="#666" stroke-width="2"/>
-          <path d="M28 80 L50 70 L62 80" fill="none" stroke="{tint}" stroke-width="4" stroke-linecap="round"/>
-          <path d="M50 70 L50 58" stroke="{tint}" stroke-width="3"/>
-          <path d="M44 58 L56 58" stroke="#94A3B8" stroke-width="3" stroke-linecap="round"/>
+        "scooty": f'''
+          <g class="pc-scooty">
+            <circle cx="30" cy="98" r="8" fill="#222" stroke="#555" stroke-width="2"/>
+            <circle cx="68" cy="98" r="8" fill="#222" stroke="#555" stroke-width="2"/>
+            <circle cx="30" cy="98" r="3" fill="#888"/>
+            <circle cx="68" cy="98" r="3" fill="#888"/>
+            <path d="M30 90 L52 78 L68 90" fill="none" stroke="{tint}" stroke-width="5" stroke-linecap="round"/>
+            <path d="M52 78 L52 64" stroke="{tint}" stroke-width="3.5"/>
+            <path d="M44 64 L60 64" stroke="#CBD5E1" stroke-width="3.5" stroke-linecap="round"/>
+          </g>
         ''',
         "laugh": '''
-          <path d="M42 48 Q50 62 58 48" fill="#2C2C2E"/>
-          <circle cx="36" cy="32" r="2" fill="#F87171" opacity="0.8"/>
-          <circle cx="64" cy="32" r="2" fill="#F87171" opacity="0.8"/>
-          <text x="72" y="28" font-size="14">😂</text>
+          <path d="M40 54 Q50 72 60 54" fill="#2C2C2E"/>
+          <path d="M42 58 Q50 68 58 58" fill="#F472B6" opacity="0.5"/>
+          <path d="M34 34 Q39 28 44 34" fill="none" stroke="#2C2C2E" stroke-width="2"/>
+          <path d="M56 34 Q61 28 66 34" fill="none" stroke="#2C2C2E" stroke-width="2"/>
+          <circle cx="30" cy="36" r="2.5" fill="#F87171" opacity="0.85"/>
+          <circle cx="70" cy="36" r="2.5" fill="#F87171" opacity="0.85"/>
         ''',
         "makeup": '''
-          <circle cx="34" cy="44" r="5" fill="#F472B6" opacity="0.7"/>
-          <circle cx="66" cy="44" r="5" fill="#F472B6" opacity="0.7"/>
-          <path d="M44 50 Q50 56 56 50" fill="none" stroke="#E11D48" stroke-width="2"/>
-          <path d="M36 32 Q41 28 46 32" fill="none" stroke="#2C2C2E" stroke-width="2"/>
-          <path d="M54 32 Q59 28 64 32" fill="none" stroke="#2C2C2E" stroke-width="2"/>
-          <circle cx="78" cy="30" r="4" fill="#F9A8D4"/>
-          <path d="M78 26 L78 20" stroke="#F9A8D4" stroke-width="2"/>
+          <circle cx="32" cy="48" r="5.5" fill="#F472B6" opacity="0.75"/>
+          <circle cx="68" cy="48" r="5.5" fill="#F472B6" opacity="0.75"/>
+          <path d="M42 56 Q50 64 58 56" fill="none" stroke="#BE123C" stroke-width="2.2"/>
+          <path d="M34 34 Q40 28 46 34" fill="none" stroke="#1a1a1a" stroke-width="2.4"/>
+          <path d="M54 34 Q60 28 66 34" fill="none" stroke="#1a1a1a" stroke-width="2.4"/>
+          <circle cx="50" cy="48" r="2" fill="#FB7185"/>
+          <g class="pc-sparkle">
+            <circle cx="78" cy="28" r="2" fill="#F9A8D4"/>
+            <circle cx="84" cy="36" r="1.4" fill="#FBCFE8"/>
+            <circle cx="18" cy="30" r="1.6" fill="#F9A8D4"/>
+          </g>
         ''',
         "tharki": '''
-          <path d="M36 36 Q41 32 46 36" fill="none" stroke="#2C2C2E" stroke-width="2"/>
-          <path d="M54 38 L64 38" stroke="#2C2C2E" stroke-width="2"/>
-          <path d="M48 52 Q55 58 62 50" fill="none" stroke="#E11D48" stroke-width="2"/>
-          <text x="70" y="30" font-size="12">💘</text>
+          <path d="M34 36 Q40 30 46 36" fill="none" stroke="#2C2C2E" stroke-width="2.2"/>
+          <path d="M54 40 L66 40" stroke="#2C2C2E" stroke-width="2.2"/>
+          <path d="M46 56 Q56 64 64 52" fill="none" stroke="#E11D48" stroke-width="2.2"/>
+          <path d="M70 28 L78 22 L76 30 L84 28 L76 34 L78 40 L70 34 L64 40 L68 32 Z" fill="#FB7185"/>
         ''',
         "longhair": '''
-          <path d="M26 30 Q18 55 28 78" fill="none" stroke="#5B3A29" stroke-width="8" stroke-linecap="round"/>
-          <path d="M74 30 Q82 55 72 78" fill="none" stroke="#5B3A29" stroke-width="8" stroke-linecap="round"/>
-          <path d="M30 28 Q22 50 32 72" fill="none" stroke="#7C5A3E" stroke-width="5" stroke-linecap="round"/>
-          <path d="M70 28 Q78 50 68 72" fill="none" stroke="#7C5A3E" stroke-width="5" stroke-linecap="round"/>
+          <g class="pc-hair">
+            <path d="M24 28 Q12 55 26 88" fill="none" stroke="#4A2F1F" stroke-width="9" stroke-linecap="round"/>
+            <path d="M76 28 Q88 55 74 88" fill="none" stroke="#4A2F1F" stroke-width="9" stroke-linecap="round"/>
+            <path d="M28 26 Q16 52 30 80" fill="none" stroke="#6B4423" stroke-width="5" stroke-linecap="round"/>
+            <path d="M72 26 Q84 52 70 80" fill="none" stroke="#6B4423" stroke-width="5" stroke-linecap="round"/>
+          </g>
         ''',
         "neta": '''
-          <ellipse cx="50" cy="16" rx="22" ry="8" fill="#1E3A5F"/>
-          <rect x="32" y="16" width="36" height="8" fill="#1E3A5F"/>
-          <path d="M32 24 L28 36 L36 28 Z" fill="#F8FAFC"/>
-          <rect x="34" y="34" width="12" height="10" rx="1" fill="none" stroke="#111" stroke-width="2"/>
-          <rect x="54" y="34" width="12" height="10" rx="1" fill="none" stroke="#111" stroke-width="2"/>
-          <line x1="46" y1="39" x2="54" y2="39" stroke="#111" stroke-width="2"/>
-          <path d="M44 52 L50 48 L56 52" fill="none" stroke="#2C2C2E" stroke-width="2"/>
+          <ellipse cx="50" cy="14" rx="24" ry="9" fill="#1E3A5F"/>
+          <rect x="30" y="14" width="40" height="10" fill="#1E3A5F"/>
+          <path d="M30 24 L24 40 L38 28 Z" fill="#F8FAFC"/>
+          <rect x="32" y="34" width="14" height="12" rx="1" fill="none" stroke="#111" stroke-width="2.2"/>
+          <rect x="54" y="34" width="14" height="12" rx="1" fill="none" stroke="#111" stroke-width="2.2"/>
+          <line x1="46" y1="40" x2="54" y2="40" stroke="#111" stroke-width="2.2"/>
+          <path d="M42 58 L50 52 L58 58" fill="none" stroke="#2C2C2E" stroke-width="2"/>
         ''',
         "tomboy": '''
-          <rect x="32" y="52" width="36" height="20" rx="3" fill="#0EA5E9"/>
-          <circle cx="22" cy="70" r="6" fill="#333"/>
-          <circle cx="78" cy="70" r="6" fill="#333"/>
-          <path d="M28 22 L50 10 L72 22" fill="#1E293B"/>
+          <rect x="30" y="58" width="40" height="24" rx="4" fill="#0284C7"/>
+          <circle cx="20" cy="78" r="7" fill="#222"/>
+          <circle cx="80" cy="78" r="7" fill="#222"/>
+          <path d="M26 20 L50 6 L74 20" fill="#0F172A"/>
+          <rect x="42" y="62" width="16" height="6" rx="1" fill="#38BDF8"/>
         ''',
         "money": '''
-          <circle cx="78" cy="36" r="10" fill="#FACC15" stroke="#CA8A04" stroke-width="2"/>
-          <text x="74" y="40" font-size="10" font-weight="700" fill="#854D0E">₹</text>
-          <circle cx="22" cy="50" r="7" fill="#FACC15" stroke="#CA8A04" stroke-width="1.5"/>
-          <circle cx="70" cy="70" r="6" fill="#FDE68A" stroke="#CA8A04" stroke-width="1.5"/>
+          <g class="pc-coins">
+            <circle cx="80" cy="34" r="11" fill="#FACC15" stroke="#CA8A04" stroke-width="2"/>
+            <text x="74" y="39" font-size="12" font-weight="700" fill="#854D0E">₹</text>
+            <circle cx="20" cy="54" r="8" fill="#FACC15" stroke="#CA8A04" stroke-width="1.5"/>
+            <circle cx="72" cy="76" r="7" fill="#FDE68A" stroke="#CA8A04" stroke-width="1.5"/>
+          </g>
         ''',
         "simple": "",
     }.get(character_key, "")
 
-    acc = acc.replace("{tint}", tint)
     return base + acc + "</svg>"
+
 
 
 def _presence_character_key(email):
@@ -2635,8 +2665,8 @@ def _presence_character_key(email):
 
 def render_presence_strip(current_email=None):
     """
-    Full mascot-style cats (same look as the main companion widget),
-    one per online agent — fixed bottom row, name above each cat.
+    Full detailed mascot cats in the LEFT companion zone (under/near main pet).
+    Each character has its own idle animation (laugh, drive, smoke, hair flow…).
     """
     try:
         agents = get_active_agents()
@@ -2646,43 +2676,57 @@ def render_presence_strip(current_email=None):
     if not agents:
         return
 
+    # Put "me" first, then others — cluster like a pet gang on the left
+    me = (current_email or "").strip().lower()
+    agents = sorted(
+        agents,
+        key=lambda a: (0 if (a.get("email") or "").lower() == me else 1, a.get("email") or ""),
+    )
+
     cards = []
-    for a in agents:
+    for i, a in enumerate(agents):
         email = a.get("email") or ""
         key, ch = _presence_character_key(email)
         tint = ch.get("tint") or "#67E8F9"
         label = html.escape(ch.get("label") or email.split("@")[0])
-        is_me = bool(
-            current_email and email.lower() == current_email.strip().lower()
-        )
+        is_me = bool(me and email.lower() == me)
         me_attr = " is-me" if is_me else ""
-        svg = _presence_cat_svg(key, tint)
+        anim = html.escape(ch.get("anim") or "idle")
+        svg = _presence_cat_svg(key, tint, uid=str(i))
         cards.append(
-            f'<div class="pc-card{me_attr}" style="--tint:{html.escape(tint)}" title="{html.escape(email)}">'
+            f'<div class="pc-card{me_attr} anim-{anim}" style="--tint:{html.escape(tint)}; --d:{i * 0.15}s" title="{html.escape(email)}">'
             f'<div class="pc-name">{label}</div>'
             f'<div class="pc-tile">{svg}</div>'
             f"</div>"
         )
 
-    n = max(len(cards), 1)
-    height = 130
+    # Tall left column so it sits in the companion lane, not the top header
+    height = min(120 + len(cards) * 100, 520)
     widget_html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"/>
 <style>
   html,body {{ margin:0; padding:0; background:transparent; overflow:hidden; }}
   .pc-dock {{
-    display:flex; flex-wrap:wrap; justify-content:center; align-items:flex-end;
-    gap:14px; padding:6px 8px; width:100%; box-sizing:border-box;
+    display:flex; flex-direction:column; flex-wrap:nowrap;
+    align-items:flex-start; gap:10px;
+    padding:4px 6px; width:100%; box-sizing:border-box;
+    max-height:100%; overflow:auto;
   }}
   .pc-card {{
-    display:flex; flex-direction:column; align-items:center; gap:6px;
-    width:96px;
+    display:flex; flex-direction:column; align-items:center; gap:5px;
+    width:100px; flex-shrink:0;
+    animation: pcEnter 0.5s cubic-bezier(0.16,1,0.3,1) both;
+    animation-delay: var(--d, 0s);
+  }}
+  @keyframes pcEnter {{
+    from {{ opacity:0; transform: translateY(12px) scale(0.92); }}
+    to {{ opacity:1; transform: none; }}
   }}
   .pc-name {{
     font-family: system-ui, -apple-system, sans-serif;
     font-size:11px; font-weight:700; color:#E8EEF8;
     background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.12);
-    padding:3px 10px; border-radius:999px; max-width:96px;
+    padding:3px 10px; border-radius:999px; max-width:100px;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     backdrop-filter: blur(10px);
   }}
@@ -2690,32 +2734,62 @@ def render_presence_strip(current_email=None):
     color:#041018; background:var(--tint); border-color:transparent;
   }}
   .pc-tile {{
-    width:88px; height:88px; border-radius:22px;
-    background: linear-gradient(160deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.05) 45%, transparent 70%),
-                rgba(24, 20, 18, 0.72);
+    width:92px; height:100px; border-radius:22px;
+    background: linear-gradient(160deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.05) 45%, transparent 70%),
+                rgba(24, 20, 18, 0.78);
     border:1px solid rgba(255,255,255,0.16);
-    box-shadow: 0 16px 36px rgba(0,0,0,0.5), 0 0 24px color-mix(in srgb, var(--tint) 25%, transparent),
+    box-shadow: 0 16px 36px rgba(0,0,0,0.5), 0 0 24px color-mix(in srgb, var(--tint) 28%, transparent),
                 inset 0 1px 0 rgba(255,255,255,0.28);
     display:flex; align-items:center; justify-content:center;
     backdrop-filter: blur(16px);
-    animation: pcBob 2s ease-in-out infinite;
+    cursor: grab;
   }}
   .pc-card.is-me .pc-tile {{
     border-color: color-mix(in srgb, var(--tint) 60%, white);
     box-shadow: 0 16px 40px rgba(0,0,0,0.5), 0 0 36px color-mix(in srgb, var(--tint) 45%, transparent),
                 inset 0 1px 0 rgba(255,255,255,0.35);
   }}
-  .pc-tile svg {{ display:block; }}
-  @keyframes pcBob {{
-    0%,100% {{ transform: translateY(0); }}
-    50% {{ transform: translateY(-5px); }}
-  }}
+  .pc-tile svg {{ display:block; overflow:visible; }}
+  /* character motion */
+  .anim-bob .pc-tile {{ animation: bob 1.8s ease-in-out infinite; }}
+  .anim-laugh .pc-tile {{ animation: laugh 0.7s ease-in-out infinite; }}
+  .anim-drive .pc-tile {{ animation: drive 1.1s ease-in-out infinite; }}
+  .anim-sway .pc-tile, .anim-idle .pc-tile, .anim-steady .pc-tile {{ animation: sway 2.4s ease-in-out infinite; }}
+  .anim-jump .pc-tile {{ animation: jump 0.95s ease-in-out infinite; }}
+  .anim-sparkle .pc-tile {{ animation: sparkle 1.6s ease-in-out infinite; }}
+  .anim-pose .pc-tile {{ animation: pose 2s ease-in-out infinite; }}
+  .anim-flow .pc-tile {{ animation: sway 2.8s ease-in-out infinite; }}
+  .anim-wink .pc-tile {{ animation: wink 1.4s ease-in-out infinite; }}
+  .anim-money .pc-tile {{ animation: money 1.5s ease-in-out infinite; }}
+  .anim-grumpy .pc-tile {{ animation: grumpy 2.2s ease-in-out infinite; }}
+  @keyframes bob {{ 0%,100% {{ transform:translateY(0); }} 50% {{ transform:translateY(-7px); }} }}
+  @keyframes laugh {{ 0%,100% {{ transform:rotate(-8deg) scale(1); }} 50% {{ transform:rotate(8deg) scale(1.08); }} }}
+  @keyframes drive {{ 0%,100% {{ transform:translateX(0); }} 50% {{ transform:translateX(6px); }} }}
+  @keyframes sway {{ 0%,100% {{ transform:rotate(-4deg); }} 50% {{ transform:rotate(4deg); }} }}
+  @keyframes jump {{ 0%,100% {{ transform:translateY(0) rotate(-4deg); }} 50% {{ transform:translateY(-10px) rotate(4deg); }} }}
+  @keyframes sparkle {{ 0%,100% {{ transform:scale(1); filter:brightness(1); }} 50% {{ transform:scale(1.06); filter:brightness(1.15); }} }}
+  @keyframes pose {{ 0%,100% {{ transform:rotate(-3deg); }} 50% {{ transform:rotate(6deg) translateY(-3px); }} }}
+  @keyframes wink {{ 0%,100% {{ transform:scaleX(1); }} 40% {{ transform:scaleX(1); }} 50% {{ transform:scaleX(0.92); }} 60% {{ transform:scaleX(1); }} }}
+  @keyframes money {{ 0%,100% {{ transform:translateY(0) rotate(0); }} 50% {{ transform:translateY(-6px) rotate(5deg); }} }}
+  @keyframes grumpy {{ 0%,100% {{ transform:translateY(0); }} 50% {{ transform:translateY(-2px) rotate(-2deg); }} }}
+  .pc-smoke {{ animation: smokeRise 2.2s ease-in-out infinite; }}
+  @keyframes smokeRise {{ 0%,100% {{ transform:translateY(0); opacity:0.7; }} 50% {{ transform:translateY(-6px); opacity:0.35; }} }}
+  .pc-hair {{ animation: hairFlow 2.5s ease-in-out infinite; transform-origin:50% 20%; }}
+  @keyframes hairFlow {{ 0%,100% {{ transform:rotate(-2deg); }} 50% {{ transform:rotate(2deg); }} }}
+  .pc-phone {{ animation: phoneBob 1.8s ease-in-out infinite; }}
+  @keyframes phoneBob {{ 0%,100% {{ transform:rotate(-6deg); }} 50% {{ transform:rotate(6deg); }} }}
+  .pc-scooty {{ animation: drive 1.1s ease-in-out infinite; }}
+  .pc-coins {{ animation: money 1.5s ease-in-out infinite; }}
+  .pc-sparkle {{ animation: sparkle 1.6s ease-in-out infinite; }}
+  .pc-tail {{ transform-origin: 76px 72px; animation: tail 2s ease-in-out infinite; }}
+  @keyframes tail {{ 0%,100% {{ transform:rotate(0); }} 50% {{ transform:rotate(12deg); }} }}
 </style></head>
 <body>
   <div class="pc-dock">{''.join(cards)}</div>
 </body></html>"""
 
     components.html(widget_html, height=height)
+
 
 
 
@@ -4653,20 +4727,12 @@ if mode == "Agent":
             unsafe_allow_html=True,
         )
 
-        # Who's online — small character cats
+        # Main companion (you) + online team pets on the LEFT (same zone)
+        render_cat_companion_widget(get_mascot_state(current_hour))
         render_presence_strip(st.session_state.agent_email)
 
-
-
-
-        # The cat companion is a floating, draggable desktop-pet style
-        # component (see render_cat_companion_widget near the top of this
-        # file). It renders itself via a full-viewport overlay and keeps
-        # its own position/interaction state client-side, so it survives
-        # Streamlit reruns without any Python-side tracking.
-        render_cat_companion_widget(get_mascot_state(current_hour))
-
         # -------- COMMAND CENTER search strip --------
+
         cc_s1, cc_s2 = st.columns([5, 1], gap="small")
         with cc_s1:
             search_value = st.text_input(
