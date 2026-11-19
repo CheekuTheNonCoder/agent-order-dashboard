@@ -19,6 +19,8 @@ from database import (
     search_orders_by_status_and_date,
     search_orders_by_zop_and_channel,
     get_distinct_order_statuses,
+    get_distinct_brands,
+    get_products_for_brand,
     get_order_count,
     get_last_upload,
     get_connection,
@@ -26,6 +28,7 @@ from database import (
     clear_agent_presence,
     get_active_agents,
 )
+
 import logging
 
 
@@ -3393,7 +3396,7 @@ def render_ticket_dump_uploader():
                 continue
 
             st.success(f"✅ {marketplace} dump structure looks valid.")
-            st.dataframe(df.head(8), use_container_width=True, hide_index=True)
+            st.dataframe(df.head(8), width="stretch", hide_index=True)
 
             confirm = st.checkbox(
                 f"I confirm this is the {marketplace} ticket dump.",
@@ -3402,7 +3405,7 @@ def render_ticket_dump_uploader():
             if confirm and st.button(
                 f"💾 Upload {marketplace} Ticket Dump",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
                 key=f"upload_{key_prefix}_ticket_dump",
             ):
                 with st.spinner(
@@ -3816,7 +3819,7 @@ def _render_bulk_refund_preview_and_submit():
         ]
         if c in found_df.columns
     ]
-    st.dataframe(found_df[preview_cols], use_container_width=True, hide_index=True)
+    st.dataframe(found_df[preview_cols], width="stretch", hide_index=True)
 
     st.info(
         f"Each line → full qty & final_price · reason "
@@ -3831,7 +3834,7 @@ def _render_bulk_refund_preview_and_submit():
     submit = st.button(
         "🔒 Confirm & Lock Bulk Refund",
         type="primary",
-        use_container_width=True,
+        width="stretch",
         disabled=not confirm or not bulk_rows,
         key="bulk_refund_submit_btn",
     )
@@ -4363,7 +4366,7 @@ def render_reports():
                 }
             )
         st.dataframe(
-            pd.DataFrame(summary_rows), use_container_width=True, hide_index=True
+            pd.DataFrame(summary_rows), width="stretch", hide_index=True
         )
 
     with tab_brand:
@@ -4376,10 +4379,10 @@ def render_reports():
                 .reset_index(name="Issues")
                 .sort_values("Issues", ascending=False)
             )
-            brand_counts["brand"] = brand_counts["brand"].fillna("Unknown").astype(str)
+            brand_counts["brand"] = brand_counts["brand"].astype(object).fillna("Unknown").astype(str)
             top20 = brand_counts.head(20)
             st.markdown("### Top 20 Brands")
-            st.dataframe(top20, use_container_width=True, hide_index=True)
+            st.dataframe(top20, width="stretch", hide_index=True)
             brands = sorted(
                 [b for b in brand_counts.brand.tolist() if b and b != "nan"]
             )
@@ -4395,7 +4398,7 @@ def render_reports():
                     .size()
                     .reset_index(name="Issues")
                     .sort_values("Issues", ascending=False),
-                    use_container_width=True,
+                    width="stretch",
                     hide_index=True,
                 )
 
@@ -4410,11 +4413,11 @@ def render_reports():
                 .sort_values("Issues", ascending=False)
             )
             product_counts["product"] = (
-                product_counts["product"].fillna("Unknown").astype(str)
+                product_counts["product"].astype(object).fillna("Unknown").astype(str)
             )
             st.markdown("### Top 20 Products")
             st.dataframe(
-                product_counts.head(20), use_container_width=True, hide_index=True
+                product_counts.head(20), width="stretch", hide_index=True
             )
             product_options = [
                 f"{r.product_id} | {r.product}"
@@ -4433,7 +4436,7 @@ def render_reports():
                     .size()
                     .reset_index(name="Issues")
                     .sort_values("Issues", ascending=False),
-                    use_container_width=True,
+                    width="stretch",
                     hide_index=True,
                 )
 
@@ -4447,7 +4450,7 @@ def render_reports():
         ticket_period = "Current" if agent_period == "Last Day" else agent_period
         tickets = _ticket_report_data(ticket_period, agent_marketplace)
         report = _agent_report(tickets)
-        st.dataframe(report, use_container_width=True, hide_index=True)
+        st.dataframe(report, width="stretch", hide_index=True)
         st.caption(
             "FRT and resolution time are working-hour calculations using 10:00 AM to 7:00 PM. Weekend skipping is not applied because no weekend policy was defined. Resolution rate only counts tickets with both Resolved Date and Closed Date."
         )
@@ -4568,7 +4571,7 @@ def render_reports():
                         if c
                     ]
                     st.dataframe(
-                        rdf[display_cols], use_container_width=True, hide_index=True
+                        rdf[display_cols], width="stretch", hide_index=True
                     )
             except Exception as e:
                 st.error(f"Refund report read failed: {e}")
@@ -4607,7 +4610,7 @@ def render_agent_login():
         login_clicked = st.button(
             "Continue →",
             type="primary",
-            use_container_width=True,
+            width="stretch",
             key="agent_login_btn",
         )
 
@@ -4688,7 +4691,7 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
 
-        if st.button("Logout", use_container_width=True, key="agent_logout_btn"):
+        if st.button("Logout", width="stretch", key="agent_logout_btn"):
             try:
                 clear_agent_presence(st.session_state.agent_email)
             except Exception:
@@ -4769,7 +4772,7 @@ if mode == "Agent":
             search_button = st.button(
                 "Search",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
                 key="agent_search_btn",
             )
 
@@ -4901,7 +4904,7 @@ if mode == "Agent":
                     ].drop_duplicates()
                     st.dataframe(
                         identifiers,
-                        use_container_width=True,
+                        width="stretch",
                         hide_index=True,
                     )
 
@@ -4963,7 +4966,7 @@ if mode == "Agent":
                     cs_submit = st.button(
                         "Submit Classification",
                         type="primary",
-                        use_container_width=True,
+                        width="stretch",
                         disabled=(
                             len(selected_cs_products) == 0
                             or cs_subcategory == "— Select Subcategory —"
@@ -5070,7 +5073,7 @@ if mode == "Agent":
                     coupon_submit_clicked = st.button(
                         "Submit Special Coupon",
                         type="primary",
-                        use_container_width=True,
+                        width="stretch",
                         key="submit_special_coupon_btn",
                     )
 
@@ -5213,7 +5216,7 @@ if mode == "Agent":
                 submit_clicked = st.button(
                     "🔒 Confirm & Lock Refund",
                     type="primary",
-                    use_container_width=True,
+                    width="stretch",
                     disabled=any_reason_missing,
                 )
 
@@ -5351,7 +5354,7 @@ if mode == "Agent":
                 other_submit = st.button(
                     "Submit",
                     type="primary",
-                    use_container_width=True,
+                    width="stretch",
                     disabled=(other_subcategory == "— Select Category —"),
                     key="cs_other_submit",
                 )
@@ -5368,6 +5371,195 @@ if mode == "Agent":
                     trigger_report_sync("Other ticket classification")
                 except Exception as e:
                     st.error(f"❌ Classification failed: {e}")
+
+        # =====================================================
+        # EMERGENCY / QUICK REFUND
+        # Order not in DB yet (sheet not updated) — agent types
+        # order id, picks brand + product from last sheet catalog,
+        # channel/variant auto-fill from historical product rows.
+        # =====================================================
+
+        st.markdown(
+            '''
+            <div class="fd-bottom-dock" style="margin-top:0.75rem;">
+              <div class="fd-dock-item fd-dock-item-active">⚡ Emergency Refund</div>
+              <div class="fd-dock-sep"></div>
+              <div class="fd-dock-hint">Order not in sheet yet · use last catalog</div>
+            </div>
+            ''',
+            unsafe_allow_html=True,
+        )
+        with st.expander("Open Emergency Refund", expanded=False):
+            st.caption(
+                "Use when the order is newer than the last sheet upload. "
+                "Brand & product lists come from existing DB catalog; "
+                "you only type the new Order ID."
+            )
+            try:
+                _lu = get_last_upload()
+                if _lu:
+                    st.caption(
+                        f"Last sheet upload: {_lu[0]} · {_lu[1]} · {_lu[2]} rows"
+                    )
+            except Exception:
+                pass
+
+            em_order_id = st.text_input(
+                "Order ID (ZOP Order ID)",
+                placeholder="Paste the new order id…",
+                key="em_refund_order_id",
+            )
+
+            try:
+                brand_list = get_distinct_brands()
+            except Exception as e:
+                brand_list = []
+                st.warning(f"Could not load brands: {e}")
+
+            em_brand = st.selectbox(
+                "Brand",
+                ["— Select Brand —"] + brand_list,
+                key="em_refund_brand",
+            )
+
+            em_selected = []
+            if em_brand and em_brand != "— Select Brand —":
+                try:
+                    brand_products = get_products_for_brand(em_brand)
+                except Exception as e:
+                    brand_products = pd.DataFrame()
+                    st.warning(f"Could not load products: {e}")
+
+                if brand_products is None or brand_products.empty:
+                    st.info("No products found for this brand in the last sheet data.")
+                else:
+                    st.markdown("**Select product(s) to refund**")
+                    for i, prow in brand_products.reset_index(drop=True).iterrows():
+                        title = str(prow.get("title") or "Unnamed product")
+                        vid = str(prow.get("variant_id") or "")
+                        ch = str(prow.get("sr_channel_id") or "")
+                        price = prow.get("final_price")
+                        try:
+                            price_s = f"₹{float(price):,.2f}" if pd.notna(price) else "—"
+                        except (TypeError, ValueError):
+                            price_s = "—"
+                        label = f"{title} · variant {vid} · {price_s}"
+                        if st.checkbox(label, key=f"em_prod_{em_brand}_{vid}_{i}"):
+                            em_selected.append(prow)
+
+            em_refund_rows = []
+            em_reason_missing = False
+            if em_selected and str(em_order_id or "").strip():
+                st.markdown("---")
+                st.markdown("**Confirm details** (pre-filled from catalog — edit if needed)")
+                for j, prow in enumerate(em_selected):
+                    vid = str(prow.get("variant_id") or "")
+                    title = str(prow.get("title") or "Product")
+                    with st.container(border=True):
+                        st.markdown(f"**{esc(title)}**")
+                        c1, c2, c3 = st.columns(3)
+                        try:
+                            def_qty = (
+                                int(prow["quantity"])
+                                if pd.notna(prow.get("quantity"))
+                                else 1
+                            )
+                        except (TypeError, ValueError):
+                            def_qty = 1
+                        try:
+                            def_amt = (
+                                float(prow["final_price"])
+                                if pd.notna(prow.get("final_price"))
+                                else 0.0
+                            )
+                        except (TypeError, ValueError):
+                            def_amt = 0.0
+
+                        ch_val = c1.text_input(
+                            "Channel ID",
+                            value=str(prow.get("sr_channel_id") or ""),
+                            key=f"em_ch_{vid}_{j}",
+                        )
+                        qty_val = c2.number_input(
+                            "Quantity",
+                            min_value=1,
+                            value=max(def_qty, 1),
+                            step=1,
+                            key=f"em_qty_{vid}_{j}",
+                        )
+                        amt_val = c3.number_input(
+                            "Refund Amount (₹)",
+                            min_value=0.0,
+                            value=float(def_amt),
+                            step=1.0,
+                            format="%.2f",
+                            key=f"em_amt_{vid}_{j}",
+                        )
+                        reason_val = st.selectbox(
+                            "Reason",
+                            REFUND_REASON_OPTIONS,
+                            key=f"em_reason_{vid}_{j}",
+                        )
+                        if reason_val == REFUND_REASON_PLACEHOLDER:
+                            em_reason_missing = True
+                        em_refund_rows.append(
+                            {
+                                "sr_channel_id": ch_val,
+                                "zop_order_id": str(em_order_id).strip(),
+                                "variant_id": vid,
+                                "product_id": prow.get("product_id"),
+                                "quantity": qty_val,
+                                "amount": amt_val,
+                                "refund_reason": reason_val,
+                            }
+                        )
+
+            can_submit_em = (
+                bool(str(em_order_id or "").strip())
+                and len(em_refund_rows) > 0
+                and not em_reason_missing
+                and bool(st.session_state.agent_email)
+            )
+            if em_selected and not str(em_order_id or "").strip():
+                st.warning("Enter the Order ID above before locking the refund.")
+            if em_reason_missing:
+                st.warning("Select a refund reason for every product.")
+
+            em_submit = st.button(
+                "⚡ Confirm & Lock Emergency Refund",
+                type="primary",
+                width="stretch",
+                disabled=not can_submit_em,
+                key="em_refund_submit",
+            )
+            if em_submit and can_submit_em:
+                try:
+                    payload = prepare_refund_payload(
+                        em_refund_rows, st.session_state.agent_email
+                    )
+                    with st.spinner("Submitting emergency refund to Google Sheet..."):
+                        result = append_refunds_to_gsheet(payload)
+                    status = (result or {}).get("status") or ""
+                    if status in ("success", "ok", "written"):
+                        st.success(
+                            f"Emergency refund submitted for order "
+                            f"**{esc(str(em_order_id).strip())}** "
+                            f"({len(payload)} line(s))."
+                        )
+                        st.session_state.mascot_state = "refund_success"
+                        trigger_report_sync("Emergency Refund")
+                    elif status in ("timeout", "unknown"):
+                        st.warning(
+                            "Sheet response timed out. Refund may still have been "
+                            "written — do **not** submit again immediately."
+                        )
+                    else:
+                        st.error(
+                            f"Refund submission issue: {(result or {}).get('message') or result}"
+                        )
+                except Exception as e:
+                    st.error(f"❌ Emergency refund failed: {e}")
+
 
 
 # =========================================================
@@ -5470,7 +5662,7 @@ else:
 
             if st.button(
                 "Logout Console",
-                use_container_width=True,
+                width="stretch",
             ):
 
                 st.session_state.admin_logged_in = False
@@ -5619,7 +5811,7 @@ else:
             if st.button(
                 "🔍 Lookup by Order ID",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
                 disabled=len(order_ids) == 0,
                 key="bulk_lookup_ids_btn",
             ):
@@ -5702,7 +5894,7 @@ else:
             if st.button(
                 "🔍 Lookup by Status + Date",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
                 disabled=len(selected_statuses) == 0,
                 key="bulk_lookup_status_btn",
             ):
@@ -5750,7 +5942,7 @@ else:
                             pd.DataFrame(
                                 pairs, columns=["zop_id", "sr_channel_id"]
                             ).head(15),
-                            use_container_width=True,
+                            width="stretch",
                             hide_index=True,
                         )
                 except Exception as e:
@@ -5759,7 +5951,7 @@ else:
             if st.button(
                 "🔍 Lookup by zop_id + sr_channel_id",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
                 disabled=len(pairs) == 0,
                 key="bulk_lookup_channel_btn",
             ):
@@ -5900,7 +6092,7 @@ else:
 
                 st.dataframe(
                     df.head(10),
-                    use_container_width=True,
+                    width="stretch",
                     hide_index=True,
                 )
 
@@ -5920,7 +6112,7 @@ else:
                     if st.button(
                         "💾 Replace Database",
                         type="primary",
-                        use_container_width=True,
+                        width="stretch",
                     ):
 
                         with st.spinner("Processing transaction data..."):
@@ -5966,4 +6158,3 @@ else:
         else:
 
             st.info("No order dump has been uploaded yet.")
-
