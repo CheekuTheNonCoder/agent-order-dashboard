@@ -266,6 +266,9 @@ def replace_orders(df, file_name):
     search_orders_by_status_and_date.clear()
     search_orders_by_zop_and_channel.clear()
     get_distinct_order_statuses.clear()
+    get_distinct_brands.clear()
+    get_products_for_brand.clear()
+
 
 
 # =========================================================
@@ -454,6 +457,61 @@ def get_distinct_order_statuses():
     if df.empty:
         return []
     return df["order_status"].astype(str).tolist()
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def get_distinct_brands():
+    """
+    Brand list from the last uploaded sheet data (orders table).
+    Used by Emergency Refund when the order itself is not in DB yet.
+    """
+    query = """
+        SELECT DISTINCT TRIM(CAST(company_name AS TEXT)) AS brand
+        FROM orders
+        WHERE company_name IS NOT NULL
+          AND TRIM(CAST(company_name AS TEXT)) <> ''
+        ORDER BY 1
+    """
+    with get_connection() as conn:
+        df = pd.read_sql_query(query, conn)
+    if df.empty:
+        return []
+    return df["brand"].astype(str).tolist()
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def get_products_for_brand(brand_name):
+    """
+    Latest known product rows for a brand from historical orders data.
+    One row per variant_id with channel / product / price from the
+    most recent order line for that variant — so Emergency Refund can
+    pre-fill sheet fields without the new order being in the DB yet.
+    """
+    brand = str(brand_name or "").strip()
+    if not brand:
+        return pd.DataFrame()
+
+    query = """
+        SELECT DISTINCT ON (CAST(variant_id AS TEXT))
+            company_id,
+            company_name,
+            sr_channel_id,
+            variant_id,
+            product_id,
+            title,
+            quantity,
+            final_price
+        FROM orders
+        WHERE TRIM(CAST(company_name AS TEXT)) = %s
+          AND variant_id IS NOT NULL
+          AND TRIM(CAST(variant_id AS TEXT)) <> ''
+        ORDER BY
+            CAST(variant_id AS TEXT),
+            order_created_at DESC NULLS LAST
+    """
+    with get_connection() as conn:
+        return pd.read_sql_query(query, conn, params=[brand])
+
 
 
 # =========================================================
